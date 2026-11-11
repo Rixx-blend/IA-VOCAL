@@ -196,7 +196,6 @@ def lancer() -> None:
         frameless=True,
         transparent=True,
         on_top=False,
-        background_color="#000000",
     )
     api.fenetre = fenetre
 

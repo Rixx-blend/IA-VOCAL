@@ -6,7 +6,7 @@ import queue
 import threading
 import tkinter as tk
 
-from . import ai
+from . import ai, preparation
 from .agent import executer_tache
 from .ai import repondre
 from .chaine import executer
@@ -46,6 +46,11 @@ class Overlay:
         self.icone = IconeZone(self.commandes)
         self.icone.demarrer()
         self.root.after(100, self._verifier_ecoute)
+
+        # Prépare l'assistant local (Ollama + modèle) si on n'utilise pas l'API
+        preparation.definir_sortie(self.messages.put)
+        if not ai.disponible():
+            preparation.lancer_en_arriere_plan()
 
     def _place_top_right(self) -> None:
         sw = self.root.winfo_screenwidth()

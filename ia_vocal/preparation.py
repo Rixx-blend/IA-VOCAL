@@ -104,6 +104,29 @@ def _installer_vosk(progres: Callable[[str], None]) -> None:
     archive.unlink(missing_ok=True)
 
 
+def _precharger_modele(progres: Callable[[str], None]) -> None:
+    """Charge le modèle en mémoire au démarrage pour éviter l'attente au premier message."""
+    import json
+
+    progres("Démarrage du cerveau local…")
+    corps = json.dumps({
+        "model": MODELE_LOCAL,
+        "prompt": "Réponds simplement OK.",
+        "stream": False,
+        "keep_alive": "30m",
+        "options": {"num_predict": 1, "num_ctx": 2048},
+    }).encode("utf-8")
+    requete = urllib.request.Request(
+        API + "/api/generate",
+        data=corps,
+        headers={"content-type": "application/json"},
+    )
+    with urllib.request.urlopen(requete, timeout=180) as rep:
+        resultat = json.loads(rep.read().decode("utf-8"))
+    if resultat.get("error"):
+        raise RuntimeError(resultat["error"])
+
+
 def _telecharger_installeur(progres: Callable[[str], None]) -> Path:
     destination = Path(tempfile.gettempdir()) / "OllamaSetup.exe"
     progres("Téléchargement d'Ollama…")
@@ -125,7 +148,8 @@ def preparer(progres: Callable[[str], None]) -> str:
             if nom not in modeles and f"{nom}:latest" not in modeles:
                 _telecharger_modele(nom, progres)
         _installer_vosk(progres)
-        return "IA VOCAL est prête : compréhension, vision et reconnaissance vocale fonctionnent en local."
+        _precharger_modele(progres)
+        return "IA VOCAL est prête : le moteur local est chargé et l'écoute continue est disponible."
     except Exception as exc:
         return f"Préparation locale impossible : {exc}"
 

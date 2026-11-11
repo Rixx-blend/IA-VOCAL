@@ -1,112 +1,76 @@
-"""Assistant : comprend une phrase libre et choisit une action à exécuter.
-
-Le modèle ne fait qu'indiquer une action parmi une liste fixe. C'est ce
-programme qui exécute l'action, et seules les actions ci-dessous existent.
-Nécessite la variable d'environnement ANTHROPIC_API_KEY.
-"""
+"""Moteur de compréhension 100 % local via Ollama."""
 
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 
-from . import actions
-from .apps import lancer_application
+MODELE_LOCAL = "qwen2.5vl:3b"
+URL_OLLAMA = "http://localhost:11434/api/chat"
 
-MODELE = "claude-haiku-5-5"
-URL_API = "https://api.anthropic.com/v1/messages"
+INSTRUCTIONS = """Tu es IA VOCAL, un assistant personnel Windows qui parle français.
+Tu fonctionnes localement. Analyse la demande et retourne UNIQUEMENT un JSON valide.
+Deux formats possibles :
+{"type":"reponse","texte":"réponse naturelle et concise"}
+{"type":"commande","commande":"une commande courte en français à exécuter"}
 
-INSTRUCTIONS = """Tu es le moteur de IA VOCAL, un assistant qui parle français.
-Tu reçois une demande de l'utilisateur et tu réponds UNIQUEMENT avec un objet JSON,
-sans texte autour, de la forme {"action": "<nom>", "args": {...}}.
-
-Actions possibles :
-- "ouvre" : args {"cible": "<site web ou nom d'application>"}
-- "lance" : args {"nom": "<nom d'application>"}
-- "minuteur" : args {"secondes": <entier>}
-- "musique" : args {}
-- "heure" : args {}
-- "reponse" : args {"texte": "<réponse courte en français>"}, pour répondre
-  à une question ou discuter
-- "inconnu" : args {"texte": "<explication courte>"}, si la demande ne peut
-  pas être faite avec les actions ci-dessus
-
-N'invente aucune autre action."""
+Si l'utilisateur pose une question, discute ou demande une explication, utilise reponse.
+Si l'utilisateur demande une action PC, site web, application, recherche, réglage ou fichier,
+formule une commande simple à transmettre au moteur local. Exemples :
+- "lance youtube" -> {"type":"commande","commande":"lance youtube"}
+- "ouvre mes téléchargements" -> {"type":"commande","commande":"ouvre mes téléchargements"}
+- "cherche des images de chats" -> {"type":"commande","commande":"cherche des images de chats"}
+N'invente jamais qu'une action a été faite. N'invente pas de résultat.
+Si une précision indispensable manque, demande-la dans une réponse.
+N'utilise jamais de service distant ni de clé API."""
 
 
-class AssistantIndisponible(Exception):
+class AssistantLocalIndisponible(Exception):
     pass
 
 
 def disponible() -> bool:
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
-
-
-def _interroger_modele(phrase: str) -> dict:
-    cle = os.environ["ANTHROPIC_API_KEY"]
-    corps = json.dumps({
-        "model": MODELE,
-        "max_tokens": 300,
-        "system": INSTRUCTIONS,
-        "messages": [{"role": "user", "content": phrase}],
-    }).encode("utf-8")
-    requete = urllib.request.Request(
-        URL_API,
-        data=corps,
-        method="POST",
-        headers={
-            "content-type": "application/json",
-            "x-api-key": cle,
-            "anthropic-version": "2023-06-01",
-        },
-    )
     try:
-        with urllib.request.urlopen(requete, timeout=20) as rep:
-            donnees = json.loads(rep.read().decode("utf-8"))
-    except urllib.error.URLError as exc:
-        raise AssistantIndisponible(f"pas de connexion ({exc.reason})") from exc
-
-    texte = "".join(
-        bloc.get("text", "") for bloc in donnees.get("content", [])
-        if bloc.get("type") == "text"
-    )
-    debut, fin = texte.find("{"), texte.rfind("}")
-    return json.loads(texte[debut:fin + 1])
-
-
-def _executer(decision: dict) -> str:
-    action = decision.get("action")
-    args = decision.get("args") or {}
-
-    if action == "ouvre":
-        return actions.ouvre(cible=str(args["cible"]))
-    if action == "lance":
-        return lancer_application(str(args["nom"]))
-    if action == "minuteur":
-        return actions.minuteur(duree=str(int(args["secondes"])), unite="secondes")
-    if action == "musique":
-        return actions.lance_musique()
-    if action == "heure":
-        return actions.heure()
-    if action in ("reponse", "inconnu"):
-        return str(args.get("texte", "")) or "Je n'ai rien à répondre."
-    return "Je ne sais pas faire ça."
+        requete = urllib.request.Request("http://localhost:11434/api/tags")
+        with urllib.request.urlopen(requete, timeout=2):
+            return True
+    except Exception:
+        return False
 
 
 def repondre(phrase: str) -> str:
-    """Comprend la phrase, exécute l'action choisie et retourne le message à afficher."""
-    if not disponible():
-        return (
-            "Je ne comprends que les commandes connues. Pour comprendre tout ce que "
-            "tu dis, ajoute la variable ANTHROPIC_API_KEY."
-        )
+    corps = {
+        "model": MODELE_LOCAL,
+        "stream": False,
+        "format": "json",
+        "options": {"temperature": 0.2},
+        "messages": [
+            {"role": "system", "content": INSTRUCTIONS},
+            {"role": "user", "content": phrase},
+        ],
+    }
+    requete = urllib.request.Request(
+        URL_OLLAMA,
+        data=json.dumps(corps, ensure_ascii=False).encode("utf-8"),
+        headers={"content-type": "application/json"},
+    )
     try:
-        return _executer(_interroger_modele(phrase))
-    except AssistantIndisponible as exc:
-        return f"Assistant indisponible : {exc}."
-    except (KeyError, TypeError, ValueError):
-        return "Je n'ai pas compris la demande."
-    except Exception as exc:  # on ne plante pas l'overlay
-        return f"Erreur : {exc}"
+        with urllib.request.urlopen(requete, timeout=180) as rep:
+            donnees = json.loads(rep.read().decode("utf-8"))
+        decision = json.loads(donnees["message"]["content"])
+    except urllib.error.URLError as exc:
+        raise AssistantLocalIndisponible(
+            "Le moteur local Ollama ne répond pas. Vérifie qu'il est démarré "
+            "et que le modèle qwen2.5vl:3b est installé."
+        ) from exc
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AssistantLocalIndisponible(
+            "Le modèle local a renvoyé une réponse illisible. Réessaie."
+        ) from exc
+
+    if decision.get("type") == "reponse":
+        return str(decision.get("texte", "Je n'ai pas de réponse."))
+    if decision.get("type") == "commande":
+        return "__COMMANDE__:" + str(decision.get("commande", phrase))
+    return "Je n'ai pas compris la demande."

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 import urllib.error
 import urllib.request
 
@@ -10,17 +12,54 @@ MODELE_LOCAL = "qwen2.5vl:3b"
 URL_OLLAMA = "http://localhost:11434/api/chat"
 
 INSTRUCTIONS = """Tu es IA VOCAL, un assistant personnel Windows qui parle français.
+IDENTITÉ TECHNIQUE À RESPECTER :
+- Le modèle qui génère tes réponses est Qwen 2.5 VL 3B.
+- Ce modèle est développé par Alibaba Cloud et exécuté localement par Ollama.
+- Tu n'es pas un modèle Microsoft, OpenAI, Google ou un autre fournisseur.
+- Ollama est le moteur d'exécution local, pas le créateur du modèle.
+- Ne prétends pas connaître une autre identité technique et n'invente jamais de version.
 Tu fonctionnes localement. Analyse la demande et retourne UNIQUEMENT un JSON valide.
 Deux formats possibles :
 {"type":"reponse","texte":"réponse naturelle et concise"}
 {"type":"commande","commande":"une commande courte en français à exécuter"}
 
-Si l'utilisateur pose une question, discute ou demande une explication, utilise reponse.
+Si l'utilisateur demande quel modèle tu es, qui l'a développé, quel moteur tu utilises
+ou si tu fonctionnes localement, réponds directement avec les informations exactes
+ci-dessus, sans transformer cette question en commande.
+Si l'utilisateur pose une autre question, discute ou demande une explication, utilise reponse.
 Si l'utilisateur demande une action sur le PC, une application, un site, un fichier ou un réglage,
 formule une commande simple et précise à transmettre au moteur local.
 N'invente jamais qu'une action a été faite ni qu'une application a été trouvée.
 Si une précision indispensable manque, demande-la dans une réponse.
 N'utilise jamais de service distant ni de clé API."""
+
+
+def _normaliser(texte: str) -> str:
+    texte = unicodedata.normalize("NFKD", texte.lower())
+    return "".join(c for c in texte if not unicodedata.combining(c))
+
+
+def _question_identite(phrase: str) -> str | None:
+    """Répond de façon déterministe aux questions sur l'identité du modèle."""
+    texte = _normaliser(phrase)
+    mots_cles = (
+        "quel modele", "quelle ia", "quelle intelligence artificielle",
+        "qui t a developpe", "qui a developpe", "qui t a cree",
+        "qui a cree", "tu es base sur", "tu utilises quel",
+        "quel moteur", "tu fonctionnes localement", "tu es local",
+        "tu viens de microsoft", "tu es microsoft",
+    )
+    if not any(mot in texte for mot in mots_cles):
+        return None
+
+    if "local" in texte or "localement" in texte or "moteur" in texte:
+        return (
+            "Je suis IA VOCAL. Mon modèle est Qwen 2.5 VL 3B, développé par "
+            "Alibaba Cloud. Il fonctionne localement sur ton ordinateur grâce à Ollama."
+        )
+    if "qui t a developpe" in texte or "qui a developpe" in texte or "qui t a cree" in texte or "qui a cree" in texte:
+        return "Le modèle que j'utilise, Qwen 2.5 VL 3B, est développé par Alibaba Cloud. IA VOCAL est l'application qui l'utilise."
+    return "Je suis IA VOCAL, propulsé par Qwen 2.5 VL 3B, un modèle développé par Alibaba Cloud et exécuté localement avec Ollama."
 
 
 class AssistantLocalIndisponible(Exception):
@@ -36,6 +75,10 @@ def disponible() -> bool:
 
 
 def repondre(phrase: str) -> str:
+    identite = _question_identite(phrase)
+    if identite:
+        return json.dumps({"type": "reponse", "texte": identite}, ensure_ascii=False)
+
     corps = {
         "model": MODELE_LOCAL,
         "stream": False,

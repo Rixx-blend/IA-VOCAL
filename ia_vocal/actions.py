@@ -12,8 +12,11 @@ import subprocess
 import threading
 import webbrowser
 
+# pc est importé en premier : ses commandes précises passent avant « ouvre … »
+from . import pc  # noqa: F401
 from .apps import lancer_application
 from .commands import command
+from .pc import SITES
 
 
 def _est_un_site(cible: str) -> bool:
@@ -25,6 +28,9 @@ def _est_un_site(cible: str) -> bool:
 @command(r"^ouvre (?P<cible>.+)$", "ouvre <site ou application>")
 def ouvre(cible: str) -> str:
     cible = cible.strip()
+    if cible.lower() in SITES:
+        webbrowser.open(SITES[cible.lower()])
+        return f"J'ouvre {cible}."
     if _est_un_site(cible):
         url = cible if cible.startswith(("http://", "https://")) else f"https://{cible}"
         webbrowser.open(url)

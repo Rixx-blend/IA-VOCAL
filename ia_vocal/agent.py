@@ -139,11 +139,17 @@ def _action_rapide_blender(objectif: str) -> str | None:
         titre = (pyautogui.getActiveWindowTitle() or "").lower()
         if "blender" not in titre:
             return None
+        import pyperclip
+
         largeur, hauteur = pyautogui.size()
-        pyautogui.click(largeur // 2, hauteur // 2)
-        pyautogui.press("x")
+        pyautogui.moveTo(largeur // 2, hauteur // 2)
+        pyautogui.hotkey("shift", "f4")  # console Python de Blender
+        pyperclip.copy('obj = bpy.data.objects.get("Cube"); bpy.data.objects.remove(obj, do_unlink=True) if obj else None')
+        pyautogui.hotkey("ctrl", "v")
         pyautogui.press("enter")
-        return "Le cube a été supprimé."
+        time.sleep(0.15)
+        pyautogui.hotkey("shift", "f5")  # retour à la vue 3D
+        return "Le cube de base a été supprimé."
     except Exception:
         return None
 

@@ -9,6 +9,7 @@ from .commands import dispatch
 
 # Import des actions : leur simple présence enregistre les commandes.
 from . import actions  # noqa: F401
+from .tray import IconeZone
 from .voice import Ecoute
 
 
@@ -26,12 +27,19 @@ class Overlay:
             pass
 
         self.ecoute = Ecoute()
+        self.commandes: queue.Queue[str] = queue.Queue()
         self._place_top_right()
         self._build()
-        self.root.bind("<Escape>", lambda _e: self.root.destroy())
+        self.root.bind("<Escape>", lambda _e: self.masquer())
         self.root.bind("<F2>", lambda _e: self.toggle())
         self.root.bind("<F3>", lambda _e: self.parler())
-        self._visible = True
+
+        # Démarrage discret : la fenêtre est cachée, seule l'icône reste visible
+        self._visible = False
+        self.root.withdraw()
+
+        self.icone = IconeZone(self.commandes)
+        self.icone.demarrer()
         self.root.after(100, self._verifier_ecoute)
 
     def _place_top_right(self) -> None:
@@ -89,7 +97,18 @@ class Overlay:
             self.bouton.config(state="disabled")
 
     def _verifier_ecoute(self) -> None:
-        """Lit les résultats de l'écoute, sans bloquer la fenêtre."""
+        """Lit les résultats de la voix et les commandes de l'icône, sans bloquer."""
+        try:
+            while True:
+                commande = self.commandes.get_nowait()
+                if commande == "quitter":
+                    self.quitter()
+                    return
+                if commande == "basculer":
+                    self.toggle()
+        except queue.Empty:
+            pass
+
         try:
             while True:
                 genre, texte = self.ecoute.resultats.get_nowait()
@@ -106,13 +125,26 @@ class Overlay:
             pass
         self.root.after(100, self._verifier_ecoute)
 
-    def toggle(self) -> None:
-        if self._visible:
-            self.root.withdraw()
-        else:
+    def afficher(self) -> None:
+        if not self._visible:
             self.root.deiconify()
             self.entry.focus_set()
-        self._visible = not self._visible
+            self._visible = True
+
+    def masquer(self) -> None:
+        if self._visible:
+            self.root.withdraw()
+            self._visible = False
+
+    def toggle(self) -> None:
+        if self._visible:
+            self.masquer()
+        else:
+            self.afficher()
+
+    def quitter(self) -> None:
+        self.icone.arreter()
+        self.root.destroy()
 
     def run(self) -> None:
         self.root.mainloop()

@@ -20,12 +20,20 @@ IDENTITÉ TECHNIQUE À RESPECTER :
 - Ne prétends pas connaître une autre identité technique et n'invente jamais de version.
 Tu fonctionnes localement. Analyse la demande et retourne UNIQUEMENT un JSON valide.
 Deux formats possibles :
-{"type":"reponse","texte":"réponse naturelle et concise"}
+{"type":"reponse","texte":"réponse naturelle, adaptée à la complexité de la demande"}
 {"type":"commande","commande":"une commande courte en français à exécuter"}
 
 Si l'utilisateur demande quel modèle tu es, qui l'a développé, quel moteur tu utilises
 ou si tu fonctionnes localement, réponds directement avec les informations exactes
 ci-dessus, sans transformer cette question en commande.
+Pour les réponses :
+- Adapte la longueur à la demande : réponse brève pour une question simple, explication développée pour une question complexe.
+- Ne raccourcis pas artificiellement tes réponses. Donne les informations nécessaires pour répondre complètement.
+- Pour une explication ou un tutoriel, avance par étapes numérotées et explique les termes techniques simplement.
+- Ajoute des exemples concrets lorsqu'ils améliorent réellement la compréhension.
+- Pour une comparaison, présente les différences importantes et termine par une conclusion claire.
+- Si tu ne connais pas une information ou si tu n'es pas certain, dis-le clairement au lieu d'inventer.
+- Évite les répétitions, les introductions inutiles et les conclusions creuses.
 Si l'utilisateur pose une autre question, discute ou demande une explication, utilise reponse.
 Si l'utilisateur demande une action sur le PC, une application, un site, un fichier ou un réglage,
 formule une commande simple et précise à transmettre au moteur local.
@@ -84,7 +92,7 @@ def repondre(phrase: str) -> str:
         "stream": False,
         "format": "json",
         "keep_alive": -1,
-        "options": {"temperature": 0.1, "num_predict": 160, "num_ctx": 4096},
+        "options": {"temperature": 0.1, "num_predict": 600, "num_ctx": 4096},
         "messages": [
             {"role": "system", "content": INSTRUCTIONS},
             {"role": "user", "content": phrase},

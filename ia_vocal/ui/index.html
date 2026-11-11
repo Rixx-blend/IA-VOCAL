@@ -90,7 +90,7 @@
 
       <div class="ligne">
         <input id="saisie" placeholder="Tape ou parle…" autocomplete="off">
-        <button id="micro" class="micro" title="Parler (F3)" onclick="ecouter()">
+        <button id="micro" class="micro" title="Activer ou arrêter l’écoute continue (F3)" onclick="ecouter()">
           <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
         </button>
         <button class="principal" title="Envoyer (Entrée)" onclick="envoyer()">
@@ -292,7 +292,7 @@ const orbe = creerOrbe(document.getElementById("orbe"));
 
 // ===== Interface =====
 const LIBELLES = {
-  repos: "IA VOCAL", ecoute: "Je t'écoute…", reflechit: "Je réfléchis…",
+  repos: "IA VOCAL · PRÊTE", ecoute: "Je t'écoute…", reflechit: "Je réfléchis…",
   parle: "Je réponds", agit: "J'agis sur ton ordinateur"
 };
 const saisie = document.getElementById("saisie");

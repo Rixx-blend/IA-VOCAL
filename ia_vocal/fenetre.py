@@ -92,12 +92,21 @@ class Api:
     def _traiter(self, texte: str) -> None:
         self._etat("reflechit")
         resultat = executer(texte)
-        if resultat is None:
+
+        # Une commande générique « lance … » peut être reconnue avant l'IA.
+        # Si le lanceur classique échoue, on délègue à l'agent local Ollama
+        # au lieu d'afficher immédiatement un faux « application introuvable ».
+        if resultat is not None and resultat.startswith("Je ne trouve pas «"):
+            self._etat("agit")
+            self._message("Je cherche cette application sur ton ordinateur…")
+            resultat = executer_tache(texte, self._message)
+        elif resultat is None:
             if ai.disponible():
                 resultat = repondre(texte)
             else:
                 self._etat("agit")
                 resultat = executer_tache(texte, self._message)
+
         self._repondre(resultat)
 
     def _attendre_voix(self) -> None:
@@ -195,13 +204,15 @@ def lancer() -> None:
         y=y,
         frameless=True,
         transparent=True,
+        shadow=False,
         on_top=False,
     )
     api.fenetre = fenetre
 
     preparation.definir_sortie(api._message)
-    if not ai.disponible():
-        preparation.lancer_en_arriere_plan()
+    # L'agent local sert aussi de secours pour les applications non détectées,
+    # même si une clé d'IA distante est configurée.
+    preparation.lancer_en_arriere_plan()
 
     def apres_demarrage() -> None:
         time.sleep(0.8)  # le temps que la fenêtre existe

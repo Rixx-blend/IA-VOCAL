@@ -132,7 +132,7 @@ def _action_rapide_blender(objectif: str) -> str | None:
 
     demande = objectif.lower()
     mots = ("supprime", "supprimer", "efface", "effacer", "enleve", "enlève", "retire", "retirer")
-    if not any(mot in demande for mot in mots) or not re.search(r"\\bcube\\b", demande):
+    if not any(mot in demande for mot in mots) or not re.search(r"\bcube\b", demande):
         return None
 
     try:

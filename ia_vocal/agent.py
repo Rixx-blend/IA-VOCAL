@@ -108,9 +108,9 @@ def _capturer() -> str:
     from PIL import ImageGrab
 
     image = ImageGrab.grab().convert("RGB")
-    image.thumbnail((960, 960))
+    image.thumbnail((768, 768))
     tampon = io.BytesIO()
-    image.save(tampon, format="JPEG", quality=65, optimize=True)
+    image.save(tampon, format="JPEG", quality=58, optimize=True)
     return base64.b64encode(tampon.getvalue()).decode("ascii")
 
 
@@ -125,7 +125,7 @@ def _demander(image_b64: str, objectif: str, historique: list[str], defilement_i
         "model": MODELE,
         "stream": False,
         "format": "json",
-        "keep_alive": "30m",
+        "keep_alive": -1,
         "options": {"temperature": 0, "num_predict": 96, "num_ctx": 4096},
         "messages": [{"role": "user", "content": consigne, "images": [image_b64]}],
     }

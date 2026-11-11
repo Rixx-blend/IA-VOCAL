@@ -39,7 +39,11 @@ Réponds UNIQUEMENT avec un objet JSON, une seule action à la fois. Formats pos
 {"action": "fini", "message": "ce que tu as fait, en français"}
 
 Les coordonnées x et y vont de 0 à 1000 : 0 = bord gauche ou haut, 1000 = bord droit ou bas.
-Quand l'objectif est atteint, réponds avec l'action "fini"."""
+Quand l'objectif est atteint, réponds avec l'action "fini".
+Si l'utilisateur ne précise pas quelle application il veut lancer, ne choisis pas au hasard :
+réponds avec l'action "fini" et demande le nom de l'application.
+Si l'application demandée n'apparaît pas à l'écran, utilise le menu Démarrer et sa recherche.
+Ne dis pas qu'une application est introuvable sans avoir vérifié le menu Démarrer."""
 
 
 class AgentIndisponible(Exception):

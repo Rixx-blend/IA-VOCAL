@@ -12,26 +12,48 @@
     font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink);
   }
 
-  /* ---- Verre liquide ---- */
+  /* ---- Carte transparente sans contour natif/filtre alpha ---- */
   .carte {
-    position: absolute; inset: 10px; box-sizing: border-box; border-radius: 32px;
-    padding: 16px 20px 18px; isolation: isolate;
-    display: flex; flex-direction: column; gap: 12px;
-    box-shadow: none; border: 0; outline: none;
+    position: absolute; inset: 10px; box-sizing: border-box; border-radius: 28px;
+    padding: 12px 20px 18px; isolation: isolate; overflow: hidden;
+    display: flex; flex-direction: column; gap: 10px;
+    background: rgba(245,247,250,.30);
+    box-shadow: none !important; border: 0 !important; outline: 0 !important;
+    filter: none !important;
   }
-  .carte::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 0;
-    backdrop-filter: blur(4px) saturate(1.3); -webkit-backdrop-filter: blur(4px) saturate(1.3);
-    filter: none;
+  .carte::before, .carte::after { content: none !important; display: none !important; }
+  .contenu { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 10px; height: 100%; }
+
+  /* Loader gooey fin, affiché pendant le raisonnement et les actions */
+  .gooey-loader {
+    display: none; position: relative; flex: none; width: 100%; height: 7px;
+    margin: 0 0 1px; overflow: hidden; border-radius: 999px;
+    background: rgba(100,116,139,.14);
+    filter: url(#gooey-loader-filter);
   }
-  .carte::after {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 1; pointer-events: none;
-    background: rgba(255,255,255,.28);
-    box-shadow:
-      inset 2px 2px 1px 0 rgba(255,255,255,.6),
-      inset -1px -1px 1px 1px rgba(255,255,255,.5);
+  .gooey-loader::before, .gooey-loader::after {
+    content: ""; position: absolute; border-radius: 50%;
+    width: 58%; height: 18px; bottom: -13px;
   }
-  .contenu { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 12px; height: 100%; }
+  .gooey-loader::before {
+    left: -12%; background: #7c6af7;
+    animation: gooey-wave-one 1.8s ease-in-out infinite alternate;
+  }
+  .gooey-loader::after {
+    left: 24%; background: #7dd3c7;
+    animation: gooey-wave-two 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes gooey-wave-one {
+    from { transform: translateX(-12%) scaleX(.82); }
+    to { transform: translateX(82%) scaleX(1.12); }
+  }
+  @keyframes gooey-wave-two {
+    from { transform: translateX(22%) scaleX(1.08); }
+    to { transform: translateX(-42%) scaleX(.86); }
+  }
+  body[data-etat="reflechit"] .gooey-loader,
+  body[data-etat="agit"] .gooey-loader,
+  body[data-etat="parle"] .gooey-loader { display: block; }
 
   .haut { display: flex; align-items: center; gap: 16px; }
   .zone-drag { flex: 1; min-height: 84px; display: flex; flex-direction: column; justify-content: center; }
@@ -81,22 +103,19 @@
 </style>
 </head>
 <body data-etat="repos">
-  <!-- Filtre de déformation du verre -->
+  <!-- Filtre gooey du loader animé -->
   <svg style="position:absolute;width:0;height:0" aria-hidden="true">
-    <filter id="verre-deforme" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
-      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.012" numOctaves="1" seed="17" result="turbulence"/>
-      <feComponentTransfer in="turbulence" result="mapped">
-        <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5"/>
-        <feFuncG type="gamma" amplitude="0" exponent="1" offset="0"/>
-        <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5"/>
-      </feComponentTransfer>
-      <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap"/>
-      <feDisplacementMap in="SourceGraphic" in2="softMap" scale="22" xChannelSelector="R" yChannelSelector="G"/>
+    <filter id="gooey-loader-filter">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix in="blur" mode="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 28 -10" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
     </filter>
   </svg>
 
   <div class="carte">
     <div class="contenu">
+      <div class="gooey-loader" role="status" aria-label="L'IA travaille"></div>
       <div class="haut">
         <div class="zone-orbe poignee" onmousedown="pywebview.api.debut_glisser()">
           <canvas id="orbe" width="168" height="168"></canvas>

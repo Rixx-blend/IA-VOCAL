@@ -40,7 +40,7 @@ def repondre(phrase: str) -> str:
         "model": MODELE_LOCAL,
         "stream": False,
         "format": "json",
-        "keep_alive": "30m",
+        "keep_alive": -1,
         "options": {"temperature": 0.1, "num_predict": 160, "num_ctx": 4096},
         "messages": [
             {"role": "system", "content": INSTRUCTIONS},

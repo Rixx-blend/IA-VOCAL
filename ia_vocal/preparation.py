@@ -113,7 +113,7 @@ def _precharger_modele(progres: Callable[[str], None]) -> None:
         "model": MODELE_LOCAL,
         "prompt": "Réponds simplement OK.",
         "stream": False,
-        "keep_alive": "30m",
+        "keep_alive": -1,
         "options": {"num_predict": 1, "num_ctx": 2048},
     }).encode("utf-8")
     requete = urllib.request.Request(

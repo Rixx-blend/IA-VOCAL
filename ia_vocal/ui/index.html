@@ -21,7 +21,6 @@
     box-shadow: 0 6px 6px rgba(0,0,0,.2), 0 0 24px rgba(0,0,0,.12);
     transition: transform .7s var(--rebond), box-shadow .7s var(--rebond);
   }
-  .carte:hover { transform: scale(1.005); }
   /* Couche de flou + déformation du fond */
   .carte::before {
     content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 0;
@@ -125,14 +124,14 @@
 
   <div class="carte">
     <div class="contenu">
-      <div class="haut pywebview-drag-region">
-        <div class="zone-orbe">
+      <div class="haut">
+        <div class="zone-orbe poignee" onmousedown="pywebview.api.debut_glisser()">
           <div class="anneau"></div>
           <div class="anneau"></div>
           <div class="anneau-tournant"></div>
           <div class="orbe"></div>
         </div>
-        <div class="zone-drag pywebview-drag-region">
+        <div class="zone-drag poignee" onmousedown="pywebview.api.debut_glisser()">
           <div class="etiquette" id="libelle">IA VOCAL</div>
           <div class="message" id="message">Dis-moi ce que tu veux.</div>
         </div>

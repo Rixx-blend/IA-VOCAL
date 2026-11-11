@@ -33,6 +33,7 @@ class Api:
     def __init__(self) -> None:
         self.fenetre = None
         self.ecoute = Ecoute()
+        self._glisse_en_cours = False
 
     # ----- appelées par la page -----
 
@@ -46,6 +47,37 @@ class Api:
         self._etat("ecoute")
         threading.Thread(target=self._attendre_voix, daemon=True).start()
         return True
+
+    def debut_glisser(self) -> None:
+        """Appelé au clic sur la poignée : Python déplace la fenêtre tant que le bouton est enfoncé."""
+        if self._glisse_en_cours:
+            return
+        self._glisse_en_cours = True
+        threading.Thread(target=self._suivre_souris, daemon=True).start()
+
+    def _suivre_souris(self) -> None:
+        user32 = ctypes.windll.user32
+        VK_LBUTTON = 0x01
+
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+        curseur = POINT()
+        user32.GetCursorPos(ctypes.byref(curseur))
+        depart_souris = (curseur.x, curseur.y)
+        depart_fenetre = (self.fenetre.x, self.fenetre.y)
+
+        try:
+            # Déplace tant que le bouton gauche reste enfoncé
+            while user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000:
+                user32.GetCursorPos(ctypes.byref(curseur))
+                self.fenetre.move(
+                    depart_fenetre[0] + curseur.x - depart_souris[0],
+                    depart_fenetre[1] + curseur.y - depart_souris[1],
+                )
+                time.sleep(0.01)
+        finally:
+            self._glisse_en_cours = False
 
     def minimiser(self) -> None:
         if self.fenetre:
@@ -140,7 +172,17 @@ def _afficher_dans_barre_des_taches() -> None:
     user32.ShowWindow(hwnd, 5)  # réaffiche : la barre des tâches se met à jour
 
 
+def _coordonnees_coherentes() -> None:
+    """Même unité pour le curseur et la fenêtre, même avec une mise à l'échelle Windows (125 %, 150 %…)."""
+    if hasattr(ctypes, "windll"):
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            pass
+
+
 def lancer() -> None:
+    _coordonnees_coherentes()
     api = Api()
     x, y = _position()
     fenetre = webview.create_window(

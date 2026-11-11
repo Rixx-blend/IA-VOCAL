@@ -25,17 +25,22 @@ def _est_un_site(cible: str) -> bool:
     )
 
 
-@command(r"^ouvre (?P<cible>.+)$", "ouvre <site ou application>")
-def ouvre(cible: str) -> str:
+def _ouvrir_cible(cible: str) -> str:
     cible = cible.strip()
-    if cible.lower() in SITES:
-        webbrowser.open(SITES[cible.lower()])
+    cle = cible.lower()
+    if cle in SITES:
+        webbrowser.open(SITES[cle])
         return f"J'ouvre {cible}."
     if _est_un_site(cible):
         url = cible if cible.startswith(("http://", "https://")) else f"https://{cible}"
         webbrowser.open(url)
         return f"J'ouvre {url}"
     return lancer_application(cible)
+
+
+@command(r"^ouvre (?P<cible>.+)$", "ouvre <site ou application>")
+def ouvre(cible: str) -> str:
+    return _ouvrir_cible(cible)
 
 
 @command(r"^lance une musique$", "lance une musique")
@@ -51,9 +56,10 @@ def lance_musique() -> str:
     return "Je lance la musique."
 
 
-@command(r"^lance (?P<cible>.+)$", "lance <application>")
+@command(r"^lance (?P<cible>.+)$", "lance <application ou site>")
 def lance(cible: str) -> str:
-    return lancer_application(cible)
+    # Les services web connus (YouTube, Gmail, GitHub…) s'ouvrent dans le navigateur.
+    return _ouvrir_cible(cible)
 
 
 @command(r"^minuteur (?P<duree>\d+)\s*(?P<unite>secondes?|minutes?|heures?)$",

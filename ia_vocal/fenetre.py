@@ -84,10 +84,14 @@ class Api:
                 if resultat.startswith("__COMMANDE__:"):
                     commande_locale = resultat.split(":", 1)[1].strip()
                     resultat = executer(commande_locale)
-                    if resultat is None:
+                    if resultat is None or resultat.startswith("Je ne trouve pas «"):
                         self._etat("agit")
                         self._message("Je réalise cette action sur ton ordinateur…")
                         resultat = executer_tache(commande_locale, self._message)
+            elif resultat.startswith("Je ne trouve pas «"):
+                self._etat("agit")
+                self._message("Je cherche cette application avec l'agent local…")
+                resultat = executer_tache(texte, self._message)
         except ai.AssistantLocalIndisponible as exc:
             resultat = str(exc)
         except Exception as exc:

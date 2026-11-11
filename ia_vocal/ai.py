@@ -16,12 +16,9 @@ Deux formats possibles :
 {"type":"commande","commande":"une commande courte en français à exécuter"}
 
 Si l'utilisateur pose une question, discute ou demande une explication, utilise reponse.
-Si l'utilisateur demande une action PC, site web, application, recherche, réglage ou fichier,
-formule une commande simple à transmettre au moteur local. Exemples :
-- "lance youtube" -> {"type":"commande","commande":"lance youtube"}
-- "ouvre mes téléchargements" -> {"type":"commande","commande":"ouvre mes téléchargements"}
-- "cherche des images de chats" -> {"type":"commande","commande":"cherche des images de chats"}
-N'invente jamais qu'une action a été faite. N'invente pas de résultat.
+Si l'utilisateur demande une action sur le PC, une application, un site, un fichier ou un réglage,
+formule une commande simple et précise à transmettre au moteur local.
+N'invente jamais qu'une action a été faite ni qu'une application a été trouvée.
 Si une précision indispensable manque, demande-la dans une réponse.
 N'utilise jamais de service distant ni de clé API."""
 
@@ -32,8 +29,7 @@ class AssistantLocalIndisponible(Exception):
 
 def disponible() -> bool:
     try:
-        requete = urllib.request.Request("http://localhost:11434/api/tags")
-        with urllib.request.urlopen(requete, timeout=2):
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2):
             return True
     except Exception:
         return False
@@ -44,7 +40,8 @@ def repondre(phrase: str) -> str:
         "model": MODELE_LOCAL,
         "stream": False,
         "format": "json",
-        "options": {"temperature": 0.2},
+        "keep_alive": "30m",
+        "options": {"temperature": 0.1, "num_predict": 160, "num_ctx": 4096},
         "messages": [
             {"role": "system", "content": INSTRUCTIONS},
             {"role": "user", "content": phrase},
@@ -56,7 +53,7 @@ def repondre(phrase: str) -> str:
         headers={"content-type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(requete, timeout=180) as rep:
+        with urllib.request.urlopen(requete, timeout=120) as rep:
             donnees = json.loads(rep.read().decode("utf-8"))
         decision = json.loads(donnees["message"]["content"])
     except urllib.error.URLError as exc:
@@ -72,5 +69,6 @@ def repondre(phrase: str) -> str:
     if decision.get("type") == "reponse":
         return str(decision.get("texte", "Je n'ai pas de réponse."))
     if decision.get("type") == "commande":
-        return "__COMMANDE__:" + str(decision.get("commande", phrase))
+        commande = str(decision.get("commande", "")).strip()
+        return "__COMMANDE__:" + (commande or phrase)
     return "Je n'ai pas compris la demande."

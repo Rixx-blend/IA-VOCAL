@@ -54,25 +54,18 @@ def _trouver_raccourci_windows(nom: str) -> str | None:
         except OSError:
             continue
 
-    # Priorité au nom exact, puis à une correspondance partielle non ambiguë.
+    # Ne jamais utiliser une correspondance partielle : « youtube » ne doit
+    # surtout pas sélectionner un raccourci sans rapport comme « t.lnk ».
     for libelle, chemin in raccourcis:
         if libelle == cible:
             return chemin
-    correspondances = [
-        (libelle, chemin) for libelle, chemin in raccourcis
-        if cible and (cible in libelle or libelle in cible)
-    ]
-    if len(correspondances) == 1:
-        return correspondances[0][1]
-    if correspondances:
-        correspondances.sort(key=lambda item: abs(len(item[0]) - len(cible)))
-        if len(correspondances) == 1 or abs(len(correspondances[0][0]) - len(cible)) < abs(len(correspondances[1][0]) - len(cible)):
-            return correspondances[0][1]
 
-    noms = [libelle for libelle, _ in raccourcis]
-    proche = difflib.get_close_matches(cible, noms, n=1, cutoff=0.88)
-    if proche:
-        return next(chemin for libelle, chemin in raccourcis if libelle == proche[0])
+    # Tolérance aux petites erreurs de dictée uniquement pour les noms assez longs.
+    if len(cible.replace(" ", "")) >= 5:
+        noms = [libelle for libelle, _ in raccourcis if len(libelle.replace(" ", "")) >= 5]
+        proche = difflib.get_close_matches(cible, noms, n=1, cutoff=0.92)
+        if proche:
+            return next(chemin for libelle, chemin in raccourcis if libelle == proche[0])
     return None
 
 
@@ -105,10 +98,13 @@ def lancer_application(nom: str) -> str:
             return f"Je ne trouve pas « {nom} » sur cet ordinateur."
         try:
             if exe.lower().endswith(".lnk"):
+                # Laisse Windows résoudre le raccourci via son shell.
                 os.startfile(exe)  # type: ignore[attr-defined]
             else:
                 subprocess.Popen([exe], shell=False)
         except OSError as exc:
+            if getattr(exc, "winerror", None) == 1223:
+                return f"Windows a annulé l'ouverture de « {nom} ». Vérifie qu'aucune demande d'autorisation n'a été refusée."
             return f"Impossible de lancer « {nom} » : {exc}"
     elif systeme == "Darwin":
         try:

@@ -61,7 +61,7 @@ class Ecoute:
             modele = self._charger_modele()
             recognizer = sr.Recognizer()
             recognizer.dynamic_energy_threshold = True
-            with sr.Microphone(sample_rate=16000) as source:
+            with sr.Microphone() as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.35)
                 while self._actif.is_set():
                     try:

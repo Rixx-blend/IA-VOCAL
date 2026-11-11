@@ -4,7 +4,7 @@ Assistant vocal Windows avec compréhension, vision et reconnaissance vocale loc
 
 ## Fonctionnement local
 
-- Ollama exécute le modèle `qwen2.5vl:3b) sur le PC.
+- Ollama exécute le modèle `qwen2.5vl:3b`) sur le PC.
 - Vosk convertit la voix en texte localement (français).
 - Les actions sur l'écran sont pilotées par l'agent local.
 - Aucune clé API Claude/Anthropic ou service Google de reconnaissance vocale n'est utilisée.

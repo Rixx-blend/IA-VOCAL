@@ -1,8 +1,4 @@
-"""Fenêtre de l'application : overlay arrondi avec orbe animé, dans la barre des tâches.
-
-L'interface est une page HTML (ui/index.html). Python expose l'objet Api à la page ;
-Python met la page à jour avec evaluate_js.
-"""
+"""Fenêtre de l'application : overlay arrondi avec orbe animé."""
 
 from __future__ import annotations
 
@@ -14,7 +10,6 @@ from pathlib import Path
 
 import webview
 
-# Enregistre les commandes (l'ordre compte : pc et souris avant « ouvre … »)
 from . import actions  # noqa: F401
 from . import agent, ai, preparation  # noqa: F401
 from .agent import executer_tache
@@ -28,14 +23,10 @@ PAGE = Path(__file__).parent / "ui" / "index.html"
 
 
 class Api:
-    """Méthodes appelées depuis la page (pywebview.api.<nom>)."""
-
     def __init__(self) -> None:
         self.fenetre = None
         self.ecoute = Ecoute()
         self._glisse_en_cours = False
-
-    # ----- appelées par la page -----
 
     def envoyer(self, texte: str) -> bool:
         threading.Thread(target=self._traiter, args=(texte,), daemon=True).start()
@@ -49,7 +40,6 @@ class Api:
         return True
 
     def debut_glisser(self) -> None:
-        """Appelé au clic sur la poignée : Python déplace la fenêtre tant que le bouton est enfoncé."""
         if self._glisse_en_cours:
             return
         self._glisse_en_cours = True
@@ -66,9 +56,7 @@ class Api:
         user32.GetCursorPos(ctypes.byref(curseur))
         depart_souris = (curseur.x, curseur.y)
         depart_fenetre = (self.fenetre.x, self.fenetre.y)
-
         try:
-            # Déplace tant que le bouton gauche reste enfoncé
             while user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000:
                 user32.GetCursorPos(ctypes.byref(curseur))
                 self.fenetre.move(
@@ -87,27 +75,24 @@ class Api:
         if self.fenetre:
             self.fenetre.destroy()
 
-    # ----- traitement -----
-
     def _traiter(self, texte: str) -> None:
         self._etat("reflechit")
-        resultat = executer(texte)
-
-        # Une commande générique « lance … » peut être reconnue avant l'IA.
-        # Si le lanceur classique échoue, on délègue à l'agent local Ollama
-        # au lieu d'afficher immédiatement un faux « application introuvable ».
-        if resultat is not None and resultat.startswith("Je ne trouve pas «"):
-            self._etat("agit")
-            self._message("Je cherche cette application sur ton ordinateur…")
-            resultat = executer_tache(texte, self._message)
-        elif resultat is None:
-            if ai.disponible():
+        try:
+            resultat = executer(texte)
+            if resultat is None:
                 resultat = repondre(texte)
-            else:
-                self._etat("agit")
-                resultat = executer_tache(texte, self._message)
-
-        self._repondre(resultat)
+                if resultat.startswith("__COMMANDE__:"):
+                    commande_locale = resultat.split(":", 1)[1].strip()
+                    resultat = executer(commande_locale)
+                    if resultat is None:
+                        self._etat("agit")
+                        self._message("Je réalise cette action sur ton ordinateur…")
+                        resultat = executer_tache(commande_locale, self._message)
+        except ai.AssistantLocalIndisponible as exc:
+            resultat = str(exc)
+        except Exception as exc:
+            resultat = f"Erreur : {exc}"
+        self._repondre(resultat or "C'est fait.")
 
     def _attendre_voix(self) -> None:
         genre, texte = self.ecoute.resultats.get()
@@ -123,8 +108,6 @@ class Api:
         _parler(texte)
         self._etat("repos")
 
-    # ----- mise à jour de la page -----
-
     def _etat(self, etat: str) -> None:
         self._appeler("setEtat", etat)
 
@@ -138,23 +121,20 @@ class Api:
         try:
             self.fenetre.evaluate_js(f"{fonction}({args})")
         except Exception:
-            pass  # la page n'est pas encore prête ou a été fermée
+            pass
 
 
 def _parler(texte: str) -> None:
-    """Lit la réponse à voix haute si pyttsx3 est installé, sinon attend un peu."""
     try:
         import pyttsx3
-    except ImportError:
+        moteur = pyttsx3.init()
+        moteur.say(texte)
+        moteur.runAndWait()
+    except Exception:
         time.sleep(min(4.0, len(texte) / 20))
-        return
-    moteur = pyttsx3.init()
-    moteur.say(texte)
-    moteur.runAndWait()
 
 
 def _position() -> tuple[int, int]:
-    """Centré en bas de l'écran principal."""
     try:
         ecran = webview.screens[0]
         largeur_ecran, hauteur_ecran = ecran.width, ecran.height
@@ -164,7 +144,6 @@ def _position() -> tuple[int, int]:
 
 
 def _afficher_dans_barre_des_taches() -> None:
-    """Une fenêtre sans bordure n'apparaît pas dans la barre des tâches : on force le style."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
@@ -177,12 +156,11 @@ def _afficher_dans_barre_des_taches() -> None:
     style = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
     style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style)
-    user32.ShowWindow(hwnd, 0)  # masque
-    user32.ShowWindow(hwnd, 5)  # réaffiche : la barre des tâches se met à jour
+    user32.ShowWindow(hwnd, 0)
+    user32.ShowWindow(hwnd, 5)
 
 
 def _coordonnees_coherentes() -> None:
-    """Même unité pour le curseur et la fenêtre, même avec une mise à l'échelle Windows (125 %, 150 %…)."""
     if hasattr(ctypes, "windll"):
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
@@ -195,27 +173,16 @@ def lancer() -> None:
     api = Api()
     x, y = _position()
     fenetre = webview.create_window(
-        TITRE,
-        html=PAGE.read_text(encoding="utf-8"),
-        js_api=api,
-        width=LARGEUR,
-        height=HAUTEUR,
-        x=x,
-        y=y,
-        frameless=True,
-        transparent=True,
-        shadow=False,
-        on_top=False,
+        TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
+        width=LARGEUR, height=HAUTEUR, x=x, y=y,
+        frameless=True, transparent=True, shadow=False, on_top=False,
     )
     api.fenetre = fenetre
-
     preparation.definir_sortie(api._message)
-    # L'agent local sert aussi de secours pour les applications non détectées,
-    # même si une clé d'IA distante est configurée.
     preparation.lancer_en_arriere_plan()
 
     def apres_demarrage() -> None:
-        time.sleep(0.8)  # le temps que la fenêtre existe
+        time.sleep(0.8)
         _afficher_dans_barre_des_taches()
 
     webview.start(apres_demarrage)

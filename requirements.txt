@@ -1,4 +1,2 @@
-# Interface : Tkinter est inclus avec Python (voir README)
-# Les dépendances suivantes sont optionnelles, pour les étapes à venir :
-# SpeechRecognition>=3.10
-# pyttsx3>=2.90
+SpeechRecognition>=3.10
+PyAudio>=0.2.14

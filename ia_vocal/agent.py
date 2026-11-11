@@ -22,8 +22,9 @@ from .commands import command
 
 MODELE = os.environ.get("IA_VOCAL_MODELE", "qwen2.5vl:3b")
 URL_OLLAMA = os.environ.get("IA_VOCAL_OLLAMA_URL", "http://localhost:11434/api/chat")
-MAX_ETAPES = 10          # limite de sécurité par tâche
-PAUSE_ENTRE_ETAPES = 1.5  # secondes, pour laisser l'écran réagir
+MAX_ETAPES = 10                    # limite de sécurité par tâche
+MAX_DEFILAGES_IDENTIQUES = 2       # évite les défilements répétés si le modèle boucle
+PAUSE_ENTRE_ETAPES = 1.0           # secondes, pour laisser l'écran réagir
 
 _arret = threading.Event()
 
@@ -120,7 +121,7 @@ def _executer(action: dict) -> None:
         else:
             pyautogui.press(touche)
     elif type_action == "defiler":
-        pyautogui.scroll(-500 if action.get("sens") == "bas" else 500)
+        pyautogui.scroll(-250 if action.get("sens") == "bas" else 250)
 
 
 def executer_tache(objectif: str, progres: Callable[[str], None]) -> str:
@@ -129,6 +130,8 @@ def executer_tache(objectif: str, progres: Callable[[str], None]) -> str:
 
     _arret.clear()
     historique: list[str] = []
+    dernier_defilement = None
+    repetitions_defilement = 0
 
     for etape in range(1, MAX_ETAPES + 1):
         if _arret.is_set():
@@ -145,7 +148,22 @@ def executer_tache(objectif: str, progres: Callable[[str], None]) -> str:
         if action.get("action") == "fini":
             return str(action.get("message", "C'est fait."))
 
-        progres(f"Étape {etape} : {action.get('action', '?')}…")
+        # Le modèle peut parfois redemander le même défilement alors que la page bouge.
+        # On limite ces répétitions pour éviter que la page ne parte en boucle.
+        if action.get("action") == "defiler":
+            sens = action.get("sens", "bas")
+            if sens == dernier_defilement:
+                repetitions_defilement += 1
+            else:
+                dernier_defilement = sens
+                repetitions_defilement = 1
+            if repetitions_defilement > MAX_DEFILAGES_IDENTIQUES:
+                return "J'ai interrompu le défilement répétitif pour éviter de faire défiler la page en boucle."
+        else:
+            dernier_defilement = None
+            repetitions_defilement = 0
+
+        # Les détails techniques des étapes ne sont pas affichés dans le chat.
         try:
             _executer(action)
         except pyautogui.FailSafeException:

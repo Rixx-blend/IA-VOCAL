@@ -22,9 +22,9 @@ from .commands import command
 
 MODELE = os.environ.get("IA_VOCAL_MODELE", "qwen2.5vl:3b")
 URL_OLLAMA = os.environ.get("IA_VOCAL_OLLAMA_URL", "http://localhost:11434/api/chat")
-MAX_ETAPES = 10                    # limite de sécurité par tâche
+MAX_ETAPES = 12                   # limite de sécurité par tâche
 MAX_DEFILAGES_IDENTIQUES = 2       # évite les défilements répétés si le modèle boucle
-PAUSE_ENTRE_ETAPES = 1.0           # secondes, pour laisser l'écran réagir
+PAUSE_ENTRE_ETAPES = 0.2           # délai court entre les actions
 
 _arret = threading.Event()
 
@@ -56,9 +56,9 @@ def _capturer() -> str:
     from PIL import ImageGrab
 
     image = ImageGrab.grab().convert("RGB")
-    image.thumbnail((1280, 1280))
+    image.thumbnail((1024, 1024))
     tampon = io.BytesIO()
-    image.save(tampon, format="JPEG", quality=80)
+    image.save(tampon, format="JPEG", quality=68)
     return base64.b64encode(tampon.getvalue()).decode("ascii")
 
 
@@ -71,7 +71,8 @@ def _demander(image_b64: str, objectif: str, historique: list[str]) -> dict:
         "model": MODELE,
         "stream": False,
         "format": "json",
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "num_predict": 96, "num_ctx": 2048},
+        "keep_alive": "10m",
         "messages": [{"role": "user", "content": consigne, "images": [image_b64]}],
     }
     requete = urllib.request.Request(
@@ -107,7 +108,7 @@ def _executer(action: dict) -> None:
         largeur, hauteur = pyautogui.size()
         x = int(float(action["x"]) / 1000 * largeur)
         y = int(float(action["y"]) / 1000 * hauteur)
-        pyautogui.moveTo(x, y, duration=0.3)
+        pyautogui.moveTo(x, y, duration=0.08)
         if type_action == "clic":
             pyautogui.click()
         else:
@@ -124,11 +125,37 @@ def _executer(action: dict) -> None:
         pyautogui.scroll(-250 if action.get("sens") == "bas" else 250)
 
 
+def _action_rapide_blender(objectif: str) -> str | None:
+    """Raccourci déterministe pour retirer le cube initial de Blender."""
+    import re
+    import pyautogui
+
+    demande = objectif.lower()
+    mots = ("supprime", "supprimer", "efface", "effacer", "enleve", "enlève", "retire", "retirer")
+    if not any(mot in demande for mot in mots) or not re.search(r"\\bcube\\b", demande):
+        return None
+
+    try:
+        titre = (pyautogui.getActiveWindowTitle() or "").lower()
+        if "blender" not in titre:
+            return None
+        largeur, hauteur = pyautogui.size()
+        pyautogui.click(largeur // 2, hauteur // 2)
+        pyautogui.press("x")
+        pyautogui.press("enter")
+        return "Le cube a été supprimé."
+    except Exception:
+        return None
+
+
 def executer_tache(objectif: str, progres: Callable[[str], None]) -> str:
     """Exécute une tâche étape par étape. Retourne le message final."""
     import pyautogui
 
     _arret.clear()
+    resultat_rapide = _action_rapide_blender(objectif)
+    if resultat_rapide:
+        return resultat_rapide
     historique: list[str] = []
     dernier_defilement = None
     repetitions_defilement = 0

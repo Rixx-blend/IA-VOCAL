@@ -35,8 +35,11 @@ def command(pattern: str, description: str = "") -> Callable[[Handler], Handler]
     return decorator
 
 
-def dispatch(text: str) -> str:
-    """Exécute la première commande qui correspond à la phrase."""
+def dispatch(text: str) -> Optional[str]:
+    """Exécute la première commande qui correspond à la phrase.
+
+    Retourne None si aucune commande ne correspond, pour laisser la main à l'assistant.
+    """
     phrase = text.strip()
     if not phrase:
         return ""
@@ -50,7 +53,7 @@ def dispatch(text: str) -> str:
                 return f"Erreur : {exc}"
             return result or "C'est fait."
 
-    return "Je ne connais pas cette commande."
+    return None
 
 
 def list_commands() -> list[str]:

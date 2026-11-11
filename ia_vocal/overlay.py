@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import queue
+import threading
 import tkinter as tk
 
+from .ai import repondre
 from .commands import dispatch
 
 # Import des actions : leur simple présence enregistre les commandes.
@@ -27,7 +29,8 @@ class Overlay:
             pass
 
         self.ecoute = Ecoute()
-        self.commandes: queue.Queue[str] = queue.Queue()
+        self.commandes: queue.Queue[str] = queue.Queue()   # venant de l'icône
+        self.messages: queue.Queue[str] = queue.Queue()    # réponses de l'assistant
         self._place_top_right()
         self._build()
         self.root.bind("<Escape>", lambda _e: self.masquer())
@@ -88,7 +91,19 @@ class Overlay:
         self.entry.delete(0, tk.END)
         if not text.strip():
             return
-        self.log.config(text=dispatch(text))
+        self._traiter(text)
+
+    def _traiter(self, texte: str) -> None:
+        """Commande connue : réponse immédiate. Sinon : l'assistant, en arrière-plan."""
+        resultat = dispatch(texte)
+        if resultat is not None:
+            self.log.config(text=resultat)
+            return
+
+        self.log.config(text="Je réfléchis…")
+        threading.Thread(
+            target=lambda: self.messages.put(repondre(texte)), daemon=True,
+        ).start()
 
     def parler(self) -> None:
         """Lance une écoute du micro (bouton Parler ou F3)."""
@@ -97,7 +112,7 @@ class Overlay:
             self.bouton.config(state="disabled")
 
     def _verifier_ecoute(self) -> None:
-        """Lit les résultats de la voix et les commandes de l'icône, sans bloquer."""
+        """Lit les commandes de l'icône, la voix et les réponses, sans bloquer."""
         try:
             while True:
                 commande = self.commandes.get_nowait()
@@ -114,15 +129,22 @@ class Overlay:
                 genre, texte = self.ecoute.resultats.get_nowait()
                 self.bouton.config(state="normal")
                 if genre == "phrase":
-                    # On écrit ce qui a été compris, puis on exécute la commande
+                    # On affiche ce qui a été compris, puis on le traite
                     self.entry.delete(0, tk.END)
                     self.entry.insert(0, texte)
-                    self.log.config(text=dispatch(texte))
                     self.entry.delete(0, tk.END)
+                    self._traiter(texte)
                 else:
                     self.log.config(text=texte)
         except queue.Empty:
             pass
+
+        try:
+            while True:
+                self.log.config(text=self.messages.get_nowait())
+        except queue.Empty:
+            pass
+
         self.root.after(100, self._verifier_ecoute)
 
     def afficher(self) -> None:

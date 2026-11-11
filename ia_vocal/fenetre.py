@@ -217,8 +217,6 @@ def _afficher_dans_barre_des_taches() -> None:
         hwnd, 0, 0, 0, 0, 0,
         SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED,
     )
-    user32.ShowWindow(hwnd, 0)
-    user32.ShowWindow(hwnd, 5)
 
 
 def _coordonnees_coherentes() -> None:
@@ -246,4 +244,25 @@ def lancer() -> None:
         time.sleep(0.8)
         _afficher_dans_barre_des_taches()
 
+    # Pywebview peut restaurer la fenêtre après une minimisation en réappliquant
+    # son cadre natif. On retire donc le cadre à chaque restauration.
+    def apres_restauration() -> None:
+        time.sleep(0.18)
+        _afficher_dans_barre_des_taches()
+        try:
+            fenetre.evaluate_js(
+                "document.documentElement.style.background='transparent';"
+                "document.body.style.background='transparent';"
+                "document.documentElement.style.outline='none';"
+                "document.body.style.outline='none';"
+            )
+        except Exception:
+            pass
+
+    try:
+        fenetre.events.restored += lambda: threading.Thread(
+            target=apres_restauration, daemon=True
+        ).start()
+    except Exception:
+        pass
     webview.start(apres_demarrage)

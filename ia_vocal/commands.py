@@ -56,5 +56,11 @@ def dispatch(text: str) -> Optional[str]:
     return None
 
 
+def reconnait(text: str) -> bool:
+    """Vrai si une commande connue correspond à la phrase (sans l'exécuter)."""
+    phrase = text.strip()
+    return any(cmd.pattern.match(phrase) for cmd in _REGISTRY)
+
+
 def list_commands() -> list[str]:
     return [c.description for c in _REGISTRY if c.description]

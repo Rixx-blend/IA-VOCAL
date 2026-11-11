@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 
 from .ai import repondre
-from .commands import dispatch
+from .chaine import executer
 
 # Import des actions : leur simple présence enregistre les commandes.
 from . import actions  # noqa: F401
@@ -94,16 +94,15 @@ class Overlay:
         self._traiter(text)
 
     def _traiter(self, texte: str) -> None:
-        """Commande connue : réponse immédiate. Sinon : l'assistant, en arrière-plan."""
-        resultat = dispatch(texte)
-        if resultat is not None:
-            self.log.config(text=resultat)
-            return
-
+        """Commandes (une ou plusieurs étapes) ou assistant, en arrière-plan."""
         self.log.config(text="Je réfléchis…")
-        threading.Thread(
-            target=lambda: self.messages.put(repondre(texte)), daemon=True,
-        ).start()
+        threading.Thread(target=self._executer, args=(texte,), daemon=True).start()
+
+    def _executer(self, texte: str) -> None:
+        resultat = executer(texte)
+        if resultat is None:
+            resultat = repondre(texte)
+        self.messages.put(resultat)
 
     def parler(self) -> None:
         """Lance une écoute du micro (bouton Parler ou F3)."""

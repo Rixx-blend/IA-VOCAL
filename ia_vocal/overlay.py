@@ -6,6 +6,8 @@ import queue
 import threading
 import tkinter as tk
 
+from . import ai
+from .agent import executer_tache
 from .ai import repondre
 from .chaine import executer
 
@@ -101,7 +103,11 @@ class Overlay:
     def _executer(self, texte: str) -> None:
         resultat = executer(texte)
         if resultat is None:
-            resultat = repondre(texte)
+            if ai.disponible():
+                resultat = repondre(texte)
+            else:
+                # Pas de clé API : l'agent local voit l'écran et agit à la souris
+                resultat = executer_tache(texte, self.messages.put)
         self.messages.put(resultat)
 
     def parler(self) -> None:

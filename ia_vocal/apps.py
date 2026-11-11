@@ -1,4 +1,4 @@
-"""Lancement d'applications installées sur l'ordinateur, par leur nom."""
+"""Lancement d'applications avec tolérance aux erreurs de dictée et de frappe."""
 
 from __future__ import annotations
 
@@ -11,10 +11,12 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
-# Noms dits à l'oral -> nom canonique ou commande Windows
+# Synonymes fréquents et noms alternatifs. La recherche floue générale
+# prend ensuite le relais pour les autres applications.
 ALIAS = {
     "bloc-notes": "notepad",
     "bloc notes": "notepad",
+    "notepad": "notepad",
     "calculatrice": "calc",
     "explorateur": "explorer",
     "gestionnaire des taches": "taskmgr",
@@ -23,10 +25,10 @@ ALIAS = {
     "adobe after effect": "after effects",
     "adobe after effects": "after effects",
     "aftereffects": "after effects",
-    "ae": "after effects",
+    "photoshop": "photoshop",
+    "premier pro": "premiere pro",
 }
 
-# Emplacements d'installation courants sous Windows (motif glob)
 CHEMINS_WINDOWS = {
     "blender": [r"C:\Program Files\Blender Foundation\Blender *\blender.exe"],
     "chrome": [
@@ -46,60 +48,86 @@ CHEMINS_WINDOWS = {
 def _normaliser(texte: str) -> str:
     texte = unicodedata.normalize("NFKD", texte)
     texte = "".join(c for c in texte if not unicodedata.combining(c))
-    return "".join(c.lower() if c.isalnum() else " " for c in texte).strip()
+    return " ".join("".join(c.lower() if c.isalnum() else " " for c in texte).split())
 
 
-def _correspond_aux_mots(demande: str, libelle: str) -> bool:
-    """Accepte les noms enrichis (Adobe/année) et les pluriels simples."""
-    mots_demandes = _normaliser(demande).split()
-    mots_libelle = _normaliser(libelle).split()
-    if not mots_demandes:
-        return False
-    return all(
-        any(mot_libelle == mot or mot_libelle.startswith(mot) for mot_libelle in mots_libelle)
-        for mot in mots_demandes
-    )
+def _score_nom(demande: str, libelle: str) -> float:
+    """Score de similarité tolérant aux fautes, mots manquants et suffixes."""
+    demande = _normaliser(demande)
+    libelle = _normaliser(libelle)
+    if not demande or not libelle:
+        return 0.0
+    if demande == libelle:
+        return 1.0
+    if demande in libelle:
+        return 0.97
+
+    mots_demande = demande.split()
+    mots_libelle = libelle.split()
+    scores = []
+    for mot in mots_demande:
+        meilleur = max(
+            (difflib.SequenceMatcher(None, mot, candidat).ratio()
+             for candidat in mots_libelle),
+            default=0.0,
+        )
+        # Une petite faute de reconnaissance vocale ne doit pas éliminer le mot.
+        scores.append(meilleur)
+    couverture = sum(scores) / len(scores)
+    ordre = difflib.SequenceMatcher(None, demande, libelle).ratio()
+    # La couverture des mots est prioritaire : « photoshop » doit trouver
+    # « Adobe Photoshop 2025 », sans confondre avec une autre application.
+    return 0.82 * couverture + 0.18 * ordre
 
 
-def _trouver_raccourci_windows(nom: str) -> str | None:
-    """Cherche le raccourci correspondant dans les menus Démarrer."""
+def _raccourcis_windows() -> list[tuple[str, str]]:
     dossiers = [
         Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs",
         Path(os.environ.get("PROGRAMDATA", "")) / "Microsoft/Windows/Start Menu/Programs",
     ]
-    cible = _normaliser(nom)
-    raccourcis: list[tuple[str, str]] = []
+    resultats: list[tuple[str, str]] = []
+    vus: set[str] = set()
     for dossier in dossiers:
         if not dossier.is_dir():
             continue
         try:
             for chemin in dossier.rglob("*.lnk"):
-                raccourcis.append((_normaliser(chemin.stem), str(chemin)))
+                cle = str(chemin).casefold()
+                if cle not in vus:
+                    vus.add(cle)
+                    resultats.append((chemin.stem, str(chemin)))
         except OSError:
             continue
+    return resultats
 
-    # Priorité au nom exact, puis aux mots demandés présents dans le nom complet.
+
+def _trouver_raccourci_windows(nom: str) -> str | None:
+    raccourcis = _raccourcis_windows()
+    if not raccourcis:
+        return None
+
+    cible = _normaliser(nom)
+    # Toujours privilégier une correspondance exacte.
     for libelle, chemin in raccourcis:
-        if libelle == cible:
+        if _normaliser(libelle) == cible:
             return chemin
 
-    candidats = [
-        (libelle, chemin)
-        for libelle, chemin in raccourcis
-        if _correspond_aux_mots(cible, libelle)
-    ]
-    if candidats:
-        # Le raccourci le plus court évite de choisir une documentation ou un désinstalleur.
-        candidats.sort(key=lambda element: len(element[0]))
-        return candidats[0][1]
+    classes = sorted(
+        ((_score_nom(cible, libelle), len(_normaliser(libelle)), libelle, chemin)
+         for libelle, chemin in raccourcis),
+        key=lambda element: (element[0], -element[1]),
+        reverse=True,
+    )
+    meilleur = classes[0]
+    second_score = classes[1][0] if len(classes) > 1 else 0.0
 
-    # Tolérance aux petites erreurs de dictée uniquement pour les noms assez longs.
-    if len(cible.replace(" ", "")) >= 5:
-        noms = [libelle for libelle, _ in raccourcis if len(libelle.replace(" ", "")) >= 5]
-        proche = difflib.get_close_matches(cible, noms, n=1, cutoff=0.90)
-        if proche:
-            return next(chemin for libelle, chemin in raccourcis if libelle == proche[0])
-    return None
+    # Seuil conservateur : ne pas ouvrir une application sans rapport.
+    # En cas de deux candidats proches, on demande une précision au lieu de deviner.
+    if meilleur[0] < 0.76:
+        return None
+    if second_score >= meilleur[0] - 0.045:
+        return None
+    return meilleur[3]
 
 
 def _trouver_windows(nom: str) -> str | None:
@@ -117,17 +145,19 @@ def _trouver_windows(nom: str) -> str | None:
 
 
 def lancer_application(nom: str) -> str:
-    """Lance une application par son nom et retourne un message à l'utilisateur."""
+    """Lance l'application la plus probable sans exiger son nom exact."""
     nom = nom.strip()
     cle = _normaliser(nom)
-    nom = ALIAS.get(cle, nom)
-    cle = _normaliser(nom)
+    nom_recherche = ALIAS.get(cle, cle)
     systeme = platform.system()
 
     if systeme == "Windows":
-        exe = _trouver_windows(cle)
+        exe = _trouver_windows(nom_recherche)
         if exe is None:
-            return f"Je ne trouve pas « {nom} » dans les applications installées ni dans le menu Démarrer."
+            return (
+                f"Je n'ai pas trouvé de correspondance assez fiable pour « {nom} ». "
+                "Vérifie le nom ou donne le nom affiché dans le menu Démarrer."
+            )
         try:
             if exe.lower().endswith(".lnk"):
                 os.startfile(exe)  # type: ignore[attr-defined]
@@ -135,7 +165,7 @@ def lancer_application(nom: str) -> str:
                 subprocess.Popen([exe], shell=False)
         except OSError as exc:
             if getattr(exc, "winerror", None) == 1223:
-                return f"Windows a annulé l'ouverture de « {nom} ». Vérifie qu'aucune demande d'autorisation n'a été refusée."
+                return f"Windows a annulé l'ouverture de « {nom} ». Vérifie l'autorisation demandée."
             return f"Impossible de lancer « {nom} » : {exc}"
     elif systeme == "Darwin":
         try:
@@ -143,7 +173,7 @@ def lancer_application(nom: str) -> str:
         except OSError as exc:
             return f"Impossible de lancer « {nom} » : {exc}"
     else:
-        exe = shutil.which(nom)
+        exe = shutil.which(nom_recherche)
         if exe is None:
             return f"Je ne trouve pas « {nom} » sur cet ordinateur."
         try:

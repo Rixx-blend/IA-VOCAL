@@ -13,7 +13,7 @@ import threading
 import webbrowser
 
 # pc est importé en premier : ses commandes précises passent avant « ouvre … »
-from . import pc  # noqa: F401
+from . import pc, souris  # noqa: F401
 from .apps import lancer_application
 from .commands import command
 from .pc import SITES

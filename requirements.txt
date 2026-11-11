@@ -2,3 +2,5 @@ SpeechRecognition>=3.10
 PyAudio>=0.2.14
 pystray>=0.19.5
 Pillow>=10.0
+pyautogui>=0.9.54
+pyperclip>=1.8.2

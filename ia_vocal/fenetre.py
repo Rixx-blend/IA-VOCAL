@@ -175,15 +175,48 @@ def _afficher_dans_barre_des_taches() -> None:
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
+    GWL_STYLE = -16
     GWL_EXSTYLE = -20
+    WS_BORDER = 0x00800000
+    WS_DLGFRAME = 0x00400000
+    WS_THICKFRAME = 0x00040000
+    WS_CAPTION = 0x00C00000
     WS_EX_APPWINDOW = 0x00040000
     WS_EX_TOOLWINDOW = 0x00000080
+    SWP_NOSIZE = 0x0001
+    SWP_NOMOVE = 0x0002
+    SWP_NOZORDER = 0x0004
+    SWP_FRAMECHANGED = 0x0020
+
     hwnd = user32.FindWindowW(None, TITRE)
     if not hwnd:
         return
-    style = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
-    style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
-    user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style)
+
+    # Supprime aussi le cadre natif Windows, qui peut rester visible
+    # même lorsque la fenêtre WebView est frameless et transparente.
+    style = user32.GetWindowLongPtrW(hwnd, GWL_STYLE)
+    style &= ~(WS_BORDER | WS_DLGFRAME | WS_THICKFRAME | WS_CAPTION)
+    user32.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
+
+    exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
+    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+    user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
+
+    # Windows 11 : demande à DWM de ne dessiner aucune bordure.
+    try:
+        dwmapi = ctypes.windll.dwmapi
+        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)
+        dwmapi.DwmSetWindowAttribute(
+            hwnd, 34, ctypes.byref(couleur_sans_bordure),
+            ctypes.sizeof(couleur_sans_bordure),
+        )
+    except Exception:
+        pass
+
+    user32.SetWindowPos(
+        hwnd, 0, 0, 0, 0, 0,
+        SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED,
+    )
     user32.ShowWindow(hwnd, 0)
     user32.ShowWindow(hwnd, 5)
 

@@ -22,7 +22,7 @@ jobs:
 
       - name: Compiler IA-VOCAL.exe
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name IA-VOCAL --collect-all webview --add-data "ia_vocal/ui;ia_vocal/ui" run.py
+          pyinstaller --noconfirm --onefile --windowed --name IA-VOCAL --collect-all webview --collect-all vosk --add-data "ia_vocal/ui;ia_vocal/ui" run.py
 
       - name: Publier l'exécutable
         uses: actions/upload-artifact@v4

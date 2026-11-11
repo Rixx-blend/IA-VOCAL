@@ -1,44 +1,25 @@
 # IA VOCAL
 
-Un petit overlay toujours au-dessus de l'écran qui reçoit des ordres (texte ou voix) et exécute des tâches.
+Assistant vocal Windows avec compréhension, vision et reconnaissance vocale locales.
 
-Exemples de commandes :
-- `ouvre https://example.com`
-- `lance une musique`
-- `minuteur 10 minutes`
-- `heure`
+## Fonctionnement local
 
-## Installation
+- Ollama exécute le modèle `qwen2.5vl:3b) sur le PC.
+- Vosk convertit la voix en texte localement (français).
+- Les actions sur l'écran sont pilotées par l'agent local.
+- Aucune clé API Claude/Anthropic ou service Google de reconnaissance vocale n'est utilisée.
 
-```bash
+## Première préparation
+
+Au premier lancement, IA VOCAL installe Ollama si nécessaire, puis télécharge le modèle IA et le modèle vocal français. Ces téléchargements initiaux nécessitent Internet. Une fois les fichiers installés, l'inférence et la reconnaissance vocale se font localement.
+
+## Installation développeur
+
+```powershell
 python -m venv .venv
-source .venv/bin/activate        # Windows : .venv\Scripts\activate
+.venv\Scripts\activate
 pip install -r requirements.txt
-python -m ia_vocal
+python run.py
 ```
 
-Tkinter est fourni avec Python sur Windows et macOS. Sur Linux : `sudo apt install python3-tk`.
-
-## Structure
-
-- `ia_vocal/overlay.py` : fenêtre overlay (Tkinter)
-- `ia_vocal/commands.py` : moteur de commandes (chaque commande est une fonction enregistrée)
-- `ia_vocal/actions.py` : les actions concrètes (ouvrir, musique, minuteur, ...)
-- `ia_vocal/__main__.py` : point d'entrée
-
-## Ajouter une commande
-
-Dans `actions.py`, décorer une fonction avec `@command(motif)` :
-
-```python
-@command(r"^ouvre (?P<url>\S+)$")
-def ouvre(url: str) -> str:
-    webbrowser.open(url)
-    return f"J'ouvre {url}"
-```
-
-## Prochaines étapes
-
-- Reconnaissance vocale (micro -> texte)
-- Synthèse vocale pour les réponses
-- Raccourci global pour afficher / masquer l'overlay
+Le modèle local demande plusieurs Go d'espace disque et de mémoire. Les performances dépendent du matériel.

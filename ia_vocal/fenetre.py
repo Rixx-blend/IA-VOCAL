@@ -27,15 +27,26 @@ class Api:
         self.fenetre = None
         self.ecoute = Ecoute()
         self._glisse_en_cours = False
+        self._traitement = threading.Lock()
 
     def envoyer(self, texte: str) -> bool:
-        threading.Thread(target=self._traiter, args=(texte,), daemon=True).start()
+        phrase = (texte or "").strip()
+        if not phrase:
+            return False
+        threading.Thread(target=self._traiter, args=(phrase,), daemon=True).start()
         return True
 
     def ecouter(self) -> bool:
+        if self.ecoute.active:
+            self.ecoute.arreter()
+            self._etat("repos")
+            self._message("Écoute désactivée.")
+            return False
         if not self.ecoute.demarrer():
+            self._message("Impossible de démarrer le micro.")
             return False
         self._etat("ecoute")
+        self._message("Je t'écoute. Tu peux parler, je reste en écoute jusqu'à désactivation.")
         threading.Thread(target=self._attendre_voix, daemon=True).start()
         return True
 
@@ -72,45 +83,57 @@ class Api:
             self.fenetre.minimize()
 
     def quitter(self) -> None:
+        self.ecoute.arreter()
         if self.fenetre:
             self.fenetre.destroy()
 
     def _traiter(self, texte: str) -> None:
-        self._etat("reflechit")
-        try:
-            resultat = executer(texte)
-            if resultat is None:
-                resultat = repondre(texte)
-                if resultat.startswith("__COMMANDE__:"):
-                    commande_locale = resultat.split(":", 1)[1].strip()
-                    resultat = executer(commande_locale)
-                    if resultat is None or resultat.startswith("Je ne trouve pas «"):
-                        self._etat("agit")
-                        self._message("Je réalise cette action sur ton ordinateur…")
-                        resultat = executer_tache(commande_locale, self._message)
-            elif resultat.startswith("Je ne trouve pas «"):
-                self._etat("agit")
-                self._message("Je cherche cette application avec l'agent local…")
-                resultat = executer_tache(texte, self._message)
-        except ai.AssistantLocalIndisponible as exc:
-            resultat = str(exc)
-        except Exception as exc:
-            resultat = f"Erreur : {exc}"
-        self._repondre(resultat or "C'est fait.")
+        with self._traitement:
+            self._etat("reflechit")
+            try:
+                resultat = executer(texte)
+                if resultat is None:
+                    resultat = repondre(texte)
+                    if resultat.startswith("__COMMANDE__:"):
+                        commande_locale = resultat.split(":", 1)[1].strip()
+                        resultat = executer(commande_locale)
+                        if resultat is None or resultat.startswith("Je ne trouve pas «"):
+                            self._etat("agit")
+                            self._message("Je réalise cette action sur ton ordinateur…")
+                            resultat = executer_tache(commande_locale, self._message)
+                elif resultat.startswith("Je ne trouve pas «"):
+                    self._etat("agit")
+                    self._message("Je cherche cette application avec l'agent local…")
+                    resultat = executer_tache(texte, self._message)
+            except ai.AssistantLocalIndisponible as exc:
+                resultat = str(exc)
+            except Exception as exc:
+                resultat = f"Erreur : {exc}"
+            self._repondre(resultat or "C'est fait.")
 
     def _attendre_voix(self) -> None:
-        genre, texte = self.ecoute.resultats.get()
-        if genre == "phrase":
-            self._appeler("setTexte", texte)
-            self.envoyer(texte)
-        else:
-            self._repondre(texte)
+        while self.ecoute.active:
+            try:
+                genre, texte = self.ecoute.resultats.get(timeout=0.35)
+            except Exception:
+                continue
+            if genre == "phrase":
+                self._appeler("setTexte", texte)
+                self.envoyer(texte)
+            else:
+                self._message(texte)
+                self._etat("repos")
+                return
 
     def _repondre(self, texte: str) -> None:
         self._message(texte)
         self._etat("parle")
-        _parler(texte)
-        self._etat("repos")
+        self.ecoute.suspendre_sortie_vocale(True)
+        try:
+            _parler(texte)
+        finally:
+            self.ecoute.suspendre_sortie_vocale(False)
+        self._etat("ecoute" if self.ecoute.active else "repos")
 
     def _etat(self, etat: str) -> None:
         self._appeler("setEtat", etat)
@@ -134,6 +157,7 @@ def _parler(texte: str) -> None:
         moteur = pyttsx3.init()
         moteur.say(texte)
         moteur.runAndWait()
+        moteur.stop()
     except Exception:
         time.sleep(min(4.0, len(texte) / 20))
 

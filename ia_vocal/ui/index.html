@@ -105,7 +105,7 @@
       </div>
     </header>
 
-    <div class="message" id="message">Dis-moi ce que tu veux.</div>
+    <div class="message" id="message">Vérification du moteur local…</div>
 
     <div class="composer" id="composer">
       <textarea id="saisie" rows="1" placeholder="Écris un message…" autocomplete="off"></textarea>
@@ -315,6 +315,12 @@ const LIBELLES = {
   parle: "Je réponds", agit: "J'agis sur ton ordinateur"
 };
 const saisie = document.getElementById("saisie");
+
+// Le premier message Python peut arriver avant l'initialisation du pont pywebview.
+// On signale explicitement que l'interface est prête pour recevoir les statuts.
+window.addEventListener("pywebviewready", () => {
+  pywebview.api.interface_prete();
+});
 
 // Appelé par Python
 function setEtat(etat) {

@@ -28,6 +28,15 @@ class Api:
         self.ecoute = Ecoute()
         self._glisse_en_cours = False
         self._traitement = threading.Lock()
+        self._interface_prete = False
+        self._messages_en_attente: list[tuple[str, str]] = []
+
+    def interface_prete(self) -> None:
+        """Signale que le pont JavaScript est disponible et vide les messages différés."""
+        self._interface_prete = True
+        en_attente, self._messages_en_attente = self._messages_en_attente, []
+        for fonction, texte in en_attente:
+            self._appeler(fonction, texte)
 
     def envoyer(self, texte: str) -> bool:
         phrase = (texte or "").strip()
@@ -143,6 +152,10 @@ class Api:
 
     def _appeler(self, fonction: str, *arguments: str) -> None:
         if self.fenetre is None:
+            return
+        if not self._interface_prete:
+            if arguments:
+                self._messages_en_attente.append((fonction, arguments[0]))
             return
         args = ",".join(json.dumps(a, ensure_ascii=False) for a in arguments)
         try:

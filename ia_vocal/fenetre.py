@@ -45,66 +45,11 @@ class Api:
             self._appeler(fonction, texte)
 
     def capturer_fond(self) -> str | None:
-        """Capture la zone du bureau derrière l'overlay pour la réfraction WebGL."""
-        if not hasattr(ctypes, "windll") or self.fenetre is None:
-            return None
-        try:
-            from PIL import Image, ImageGrab
-            user32 = ctypes.windll.user32
-            user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-            user32.FindWindowW.restype = ctypes.c_void_p
-            user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-            user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
-            hwnd = user32.FindWindowW(None, TITRE)
-            if not hwnd:
-                return None
-
-            class POINT(ctypes.Structure):
-                _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-
-            class RECT(ctypes.Structure):
-                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
-                            ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
-
-            rect = RECT()
-            if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
-                return None
-            origin = POINT(0, 0)
-            if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
-                return None
-            width, height = rect.right - rect.left, rect.bottom - rect.top
-            if width <= 0 or height <= 0:
-                return None
-            try:
-                dpi = user32.GetDpiForWindow(hwnd) or 96
-            except Exception:
-                dpi = 96
-            marge = round(16 * dpi / 96)  # marge transparente CSS autour de la vitre
-            # L'affinité WDA_EXCLUDEFROMCAPTURE est activée une seule fois
-            # au démarrage dans _effet_verre : aucune bascule par image, donc
-            # pas de clignotement de l'overlay pendant la capture.
-            shot = ImageGrab.grab(
-                bbox=(
-                    origin.x + marge, origin.y + marge,
-                    origin.x + width - marge, origin.y + height - marge,
-                ),
-                all_screens=True,
-            )
-
-            # Aligne la texture sur les dimensions CSS attendues par le shader.
-            echelle = max(1.0, dpi / 96.0)
-            taille = (
-                max(1, round((width - 2 * marge) / echelle)),
-                max(1, round((height - 2 * marge) / echelle)),
-            )
-            if shot.size != taille:
-                shot = shot.resize(taille, Image.Resampling.BILINEAR)
-            buffer = io.BytesIO()
-            shot.convert("RGB").save(buffer, format="JPEG", quality=78, optimize=True)
-            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-            return "data:image/jpeg;base64," + encoded
-        except Exception:
-            return None
+        """Aucune capture écran : le flou est fourni par DWM pour rester partageable."""
+        # Capturer le bureau avec ImageGrab inclurait parfois la fenêtre elle-même
+        # et créerait une boucle visuelle. Le backdrop Acrylic de Windows compose
+        # directement le contenu derrière la fenêtre et reste visible aux captures.
+        return None
 
     def envoyer(self, texte: str) -> bool:
         phrase = (texte or "").strip()
@@ -321,7 +266,7 @@ class _Rect(ctypes.Structure):
 
 
 def _effet_verre() -> None:
-    """Configure l’exclusion de capture et le découpage arrondi de la vitre."""
+    """Active le backdrop Acrylic de Windows, visible dans les captures et partages."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
@@ -331,31 +276,43 @@ def _effet_verre() -> None:
     if not hwnd:
         return
 
-    # Exclut l'overlay de toutes les captures Windows standard.
-    # Il reste visible sur le moniteur, mais pas dans les captures/partages.
+    # Ne jamais utiliser WDA_EXCLUDEFROMCAPTURE : cela cachait toute la fenêtre
+    # dans les captures et les partages d'écran.
     try:
         user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
         user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
-        user32.SetWindowDisplayAffinity(hwnd, 0x00000011)  # WDA_EXCLUDEFROMCAPTURE
+        user32.SetWindowDisplayAffinity(hwnd, 0)  # WDA_NONE
     except Exception:
         pass
 
-    # Désactive Mica/Acrylic : le shader WebGL affiche la capture réelle
-    # et calcule lui-même le flou ainsi que la réfraction périphérique.
+    # Acrylic natif DWM : le bureau est flouté derrière la fenêtre par Windows.
+    # Contrairement à ImageGrab, aucun rendu de l'overlay n'est réinjecté dans
+    # sa propre texture, et le résultat composé reste capturable/partageable.
     try:
-        ACCENT_DISABLED = 0
-        politique = _AccentPolicy(ACCENT_DISABLED, 0, 0, 0)
+        ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+        ACCENT_FLAGS = 2
+        # Format ABGR : voile gris clair semi-transparent.
+        ACRYLIC_TINT = 0xB8202838
+        politique = _AccentPolicy(
+            ACCENT_ENABLE_ACRYLICBLURBEHIND,
+            ACCENT_FLAGS,
+            ACRYLIC_TINT,
+            0,
+        )
         donnees = _CompAttrData(
             19,
             ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
             ctypes.sizeof(politique),
         )
+        user32.SetWindowCompositionAttribute.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(_CompAttrData)
+        ]
+        user32.SetWindowCompositionAttribute.restype = ctypes.c_bool
         user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
     except Exception:
         pass
 
-    # Découpe native de toute la fenêtre : aucun panneau Acrylic rectangulaire
-    # ne doit dépasser des coins arrondis du composant HTML.
+    # Découpe native arrondie, en conservant la composition DWM.
     try:
         class RECT(ctypes.Structure):
             _fields_ = [
@@ -385,35 +342,18 @@ def _effet_verre() -> None:
             region = gdi32.CreateRoundRectRgn(
                 0, 0, largeur + 1, hauteur + 1, rayon * 2, rayon * 2
             )
-            if region:
-                if not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
-                    gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
-                    gdi32.DeleteObject(region)
+            if region and not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
+                gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+                gdi32.DeleteObject(region)
     except Exception:
         pass
 
-    # Conserve l'absence de cadre natif Windows.
     try:
         dwmapi = ctypes.windll.dwmapi
-        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)  # DWMWA_COLOR_NONE
+        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)
         dwmapi.DwmSetWindowAttribute(
             hwnd, 34, ctypes.byref(couleur_sans_bordure),
             ctypes.sizeof(couleur_sans_bordure),
-        )
-        corner_round = ctypes.c_int(2)  # DWMWCP_ROUND
-        dwmapi.DwmSetWindowAttribute(
-            hwnd, 33, ctypes.byref(corner_round), ctypes.sizeof(corner_round),
-        )
-    except Exception:
-        pass
-
-    try:
-        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER = 0x0001, 0x0002, 0x0004
-        SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x0010, 0x0020
-        user32.SetWindowPos(
-            hwnd, 0, 0, 0, 0, 0,
-            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER |
-            SWP_NOACTIVATE | SWP_FRAMECHANGED,
         )
     except Exception:
         pass

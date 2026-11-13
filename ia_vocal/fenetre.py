@@ -326,21 +326,34 @@ def _effet_verre() -> None:
     except Exception:
         pass
 
-    # Aucun contour DWM ni matériau système additionnel.
+    # Transparence native : aucun Mica/Acrylic/DWM backdrop derrière le WebView.
+    # La surface HTML dessine elle-même les coins et les reflets du verre.
     try:
         dwmapi = ctypes.windll.dwmapi
-        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)
+        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)  # DWMWA_COLOR_NONE
         dwmapi.DwmSetWindowAttribute(
             hwnd, 34, ctypes.byref(couleur_sans_bordure),
             ctypes.sizeof(couleur_sans_bordure),
         )
-        backdrop_none = ctypes.c_int(1)
+        backdrop_none = ctypes.c_int(1)  # DWMSBT_NONE
         dwmapi.DwmSetWindowAttribute(
             hwnd, 38, ctypes.byref(backdrop_none), ctypes.sizeof(backdrop_none),
         )
-        corner_none = ctypes.c_int(1)
+        corner_default = ctypes.c_int(0)  # Le clipping CSS gère les coins arrondis
         dwmapi.DwmSetWindowAttribute(
-            hwnd, 33, ctypes.byref(corner_none), ctypes.sizeof(corner_none),
+            hwnd, 33, ctypes.byref(corner_default), ctypes.sizeof(corner_default),
+        )
+    except Exception:
+        pass
+
+    # Force Windows à recalculer la frame après le retrait du cadre natif.
+    try:
+        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER = 0x0001, 0x0002, 0x0004
+        SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x0010, 0x0020
+        user32.SetWindowPos(
+            hwnd, 0, 0, 0, 0, 0,
+            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER |
+            SWP_NOACTIVATE | SWP_FRAMECHANGED,
         )
     except Exception:
         pass

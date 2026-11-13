@@ -28,7 +28,7 @@ body[data-etat="agit"] .status-dot{background:#ffd18c;box-shadow:0 0 9px rgba(25
 .controles button:last-child{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.88);font-size:16px;line-height:1;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 2px 2px rgba(255,255,255,.78),inset 0 -1px 2px rgba(0,0,0,.16),0 2px 7px rgba(0,0,0,.10);transition:background .18s ease,transform .2s var(--spring)}
 .controles button:last-child:hover{background:rgba(255,255,255,.19);transform:scale(1.06)}
 .controles button:last-child:active{transform:scale(.92)}
-.message{flex:1;min-height:25px;max-height:82px;overflow:auto;padding:2px;color:rgba(246,248,252,.94);font-size:13px;line-height:1.48;font-weight:450;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9);overflow-wrap:anywhere;scrollbar-width:thin}
+.message{flex:1;min-height:25px;max-height:82px;overflow:auto;padding:2px;color:#fff;font-size:13px;line-height:1.48;font-weight:450;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9);overflow-wrap:anywhere;scrollbar-width:thin}
 .composer{display:flex;align-items:flex-end;gap:8px;padding:7px 7px 7px 15px;min-height:50px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.42);box-shadow:0 4px 14px rgba(0,0,0,.12),inset 0 2px 2px rgba(255,255,255,.72),inset 0 -1px 2px rgba(0,0,0,.16);transition:background .22s ease,box-shadow .22s ease}
 .composer:focus-within{background:rgba(255,255,255,.105);box-shadow:0 5px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.19),0 0 0 1px rgba(255,255,255,.055)}
 textarea{flex:1;min-width:0;min-height:34px;max-height:88px;resize:none;overflow-y:auto;padding:8px 0 6px;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#fff;font:450 13px/20px "SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9);scrollbar-width:thin;user-select:text;-webkit-user-select:text}
@@ -327,7 +327,7 @@ function creerVerre(canvas, contenant) {
   gl.uniform1i(U.u_bg, 0);
   let imageFond = null, textureSale = false, captureEnCours = false, dernierCapture = 0;
   async function actualiserCapture(now) {
-    if (captureEnCours || now - dernierCapture < 80) return;
+    if (captureEnCours || now - dernierCapture < 120) return;
     captureEnCours = true; dernierCapture = now;
     try {
       const data = await pywebview.api.capturer_fond();
@@ -368,7 +368,7 @@ function creerVerre(canvas, contenant) {
     // La carte entière est la forme : centre au milieu, rayon des coins de 24 px
     gl.uniform2f(U.u_centre, cssW / 2, cssH / 2);
     gl.uniform2f(U.u_demi, cssW / 2, cssH / 2);
-    gl.uniform1f(U.u_rayon, 24);
+    gl.uniform1f(U.u_rayon, 32);
     // Réglages du préréglage Prism
     gl.uniform1f(U.u_ior, 1.52);
     gl.uniform1f(U.u_bisel, 12.0);

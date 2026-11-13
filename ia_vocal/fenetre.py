@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import base64
 import ctypes
-import io
 import json
 import os
 import threading
@@ -43,13 +41,6 @@ class Api:
         en_attente, self._messages_en_attente = self._messages_en_attente, []
         for fonction, texte in en_attente:
             self._appeler(fonction, texte)
-
-    def capturer_fond(self) -> str | None:
-        """Aucune capture écran : le flou est fourni par DWM pour rester partageable."""
-        # Capturer le bureau avec ImageGrab inclurait parfois la fenêtre elle-même
-        # et créerait une boucle visuelle. Le backdrop Acrylic de Windows compose
-        # directement le contenu derrière la fenêtre et reste visible aux captures.
-        return None
 
     def envoyer(self, texte: str) -> bool:
         phrase = (texte or "").strip()
@@ -225,9 +216,7 @@ def _afficher_dans_barre_des_taches() -> None:
     user32.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
 
     exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
-    # Ne pas forcer WS_EX_LAYERED ni une couleur-clé : cette combinaison
-    # recrée un rectangle opaque sur certaines compositions Windows 11.
-    # pywebview / WebView2 gère l'alpha via DefaultBackgroundColor=Transparent.
+    # L'alpha est géré par WebView2 ; aucune couche color-key n'est ajoutée.
     exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
 
@@ -246,21 +235,6 @@ def _afficher_dans_barre_des_taches() -> None:
         hwnd, 0, 0, 0, 0, 0,
         SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED,
     )
-
-
-class _AccentPolicy(ctypes.Structure):
-    _fields_ = [
-        ("AccentState", ctypes.c_uint), ("AccentFlags", ctypes.c_uint),
-        ("GradientColor", ctypes.c_uint), ("AnimationId", ctypes.c_uint),
-    ]
-
-
-class _CompAttrData(ctypes.Structure):
-    _fields_ = [("Attribute", ctypes.c_int), ("Data", ctypes.c_void_p), ("SizeOfData", ctypes.c_size_t)]
-
-
-class _Rect(ctypes.Structure):
-    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
 
 
 def _effet_verre() -> None:
@@ -283,7 +257,7 @@ def _effet_verre() -> None:
     except Exception:
         pass
 
-    # Aucun backdrop Acrylic : il créait un rectangle opaque derrière le verre CSS.
+    # Aucun backdrop DWM / Acrylic / Mica n'est activé.
 
     # Découpe native arrondie, sans fond natif opaque.
     try:

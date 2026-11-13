@@ -373,7 +373,7 @@ function creerVerre(canvas, contenant) {
   gl.uniform1i(U.u_bg, 0);
   let imageFond = null, textureSale = false, captureEnCours = false, dernierCapture = 0;
   async function actualiserCapture(now) {
-    if (captureEnCours || now - dernierCapture < 75) return;
+    if (captureEnCours || now - dernierCapture < 50) return;
     captureEnCours = true; dernierCapture = now;
     try {
       const data = await pywebview.api.capturer_fond();

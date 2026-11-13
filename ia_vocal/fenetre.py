@@ -80,25 +80,16 @@ class Api:
             except Exception:
                 dpi = 96
             marge = round(16 * dpi / 96)  # marge transparente CSS autour de la vitre
-            # WDA_EXCLUDEFROMCAPTURE retire cette fenêtre de la capture.
-            # L'affinité est restaurée immédiatement après chaque image.
-            WDA_NONE = 0x00000000
-            WDA_EXCLUDEFROMCAPTURE = 0x00000011
-            affinite_active = bool(
-                user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+            # L'affinité WDA_EXCLUDEFROMCAPTURE est activée une seule fois
+            # au démarrage dans _effet_verre : aucune bascule par image, donc
+            # pas de clignotement de l'overlay pendant la capture.
+            shot = ImageGrab.grab(
+                bbox=(
+                    origin.x + marge, origin.y + marge,
+                    origin.x + width - marge, origin.y + height - marge,
+                ),
+                all_screens=True,
             )
-            if not affinite_active:
-                return None
-            try:
-                shot = ImageGrab.grab(
-                    bbox=(
-                        origin.x + marge, origin.y + marge,
-                        origin.x + width - marge, origin.y + height - marge,
-                    ),
-                    all_screens=True,
-                )
-            finally:
-                user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
 
             # Aligne la texture sur les dimensions CSS attendues par le shader.
             echelle = max(1.0, dpi / 96.0)
@@ -338,9 +329,13 @@ def _effet_verre() -> None:
     if not hwnd:
         return
 
-    # L'overlay reste inclus dans les captures et le partage d'écran.
+    # Exclut l'overlay de toutes les captures Windows standard.
+    # Il reste visible sur le moniteur, mais pas dans les captures/partages.
     try:
-        user32.SetWindowDisplayAffinity(hwnd, 0)  # WDA_NONE
+        user32.FindWindowW.restype = ctypes.c_void_p
+        user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
+        user32.SetWindowDisplayAffinity(hwnd, 0x00000011)  # WDA_EXCLUDEFROMCAPTURE
     except Exception:
         pass
 

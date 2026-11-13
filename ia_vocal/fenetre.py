@@ -362,12 +362,23 @@ def _effet_verre() -> None:
             except Exception:
                 dpi = 96
             rayon = max(1, round(38 * dpi / 96))
-            region = ctypes.windll.gdi32.CreateRoundRectRgn(
+            gdi32 = ctypes.windll.gdi32
+            gdi32.CreateRoundRectRgn.argtypes = [
+                ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                ctypes.c_int, ctypes.c_int,
+            ]
+            gdi32.CreateRoundRectRgn.restype = ctypes.c_void_p
+            user32.SetWindowRgn.argtypes = [
+                ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool,
+            ]
+            user32.SetWindowRgn.restype = ctypes.c_int
+            region = gdi32.CreateRoundRectRgn(
                 0, 0, largeur + 1, hauteur + 1, rayon * 2, rayon * 2
             )
             if region:
-                if not user32.SetWindowRgn(hwnd, region, True):
-                    ctypes.windll.gdi32.DeleteObject(region)
+                if not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
+                    gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+                    gdi32.DeleteObject(region)
     except Exception:
         pass
 

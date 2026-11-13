@@ -209,9 +209,6 @@ def _afficher_dans_barre_des_taches() -> None:
     WS_CAPTION = 0x00C00000
     WS_EX_APPWINDOW = 0x00040000
     WS_EX_TOOLWINDOW = 0x00000080
-    WS_EX_LAYERED = 0x00080000
-    LWA_COLORKEY = 0x00000001
-    COULEUR_CLE_MAGENTA = 0x00FF00FF
     SWP_NOSIZE = 0x0001
     SWP_NOMOVE = 0x0002
     SWP_NOZORDER = 0x0004
@@ -228,10 +225,11 @@ def _afficher_dans_barre_des_taches() -> None:
     user32.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
 
     exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
-    # Le fond magenta du host devient transparent au niveau du compositeur Windows.
-    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW | WS_EX_LAYERED
+    # Ne pas forcer WS_EX_LAYERED ni une couleur-clé : cette combinaison
+    # recrée un rectangle opaque sur certaines compositions Windows 11.
+    # pywebview / WebView2 gère l'alpha via DefaultBackgroundColor=Transparent.
+    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
-    user32.SetLayeredWindowAttributes(hwnd, COULEUR_CLE_MAGENTA, 255, LWA_COLORKEY)
 
     # Windows 11 : demande à DWM de ne dessiner aucune bordure.
     try:
@@ -266,7 +264,7 @@ class _Rect(ctypes.Structure):
 
 
 def _effet_verre() -> None:
-    """Active le backdrop Acrylic de Windows, visible dans les captures et partages."""
+    """Applique uniquement le découpage arrondi natif, sans backdrop ni capture."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
@@ -349,7 +347,7 @@ def lancer() -> None:
     fenetre = webview.create_window(
         TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
         width=LARGEUR, height=HAUTEUR, x=x, y=y,
-        frameless=True, transparent=True, background_color="#FF00FF",
+        frameless=True, transparent=True, background_color="#000000",
         shadow=False, on_top=False,
     )
     api.fenetre = fenetre

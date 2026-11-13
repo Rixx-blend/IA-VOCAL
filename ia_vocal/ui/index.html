@@ -21,8 +21,8 @@
     position: relative; width: 100%; height: 100%; padding: 13px 16px 14px;
     display: flex; flex-direction: column; gap: 9px; overflow: hidden;
     border: 0 !important; outline: 0 !important; border-radius: 24px;
-    background: rgba(10,15,28,.22);
-    box-shadow: 0 18px 55px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.16);
+    background: transparent;
+    box-shadow: none;
     -webkit-app-region: no-drag;
   }
   /* Verre prisme : la carte est dessinée en WebGL ; repli CSS si WebGL2 manque */
@@ -57,14 +57,14 @@
   }
   .composer {
     display:flex; align-items:flex-end; gap:8px; padding:8px 8px 8px 14px;
-    min-height:54px; border-radius:19px; background:rgba(9,15,29,.58);
-    border:1px solid rgba(220,240,255,.14);
-    box-shadow:0 8px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.10);
+    min-height:54px; border-radius:19px; background:rgba(12,20,34,.16);
+    border:1px solid rgba(220,240,255,.08);
+    box-shadow:0 4px 14px rgba(0,0,0,.07), inset 0 1px 0 rgba(255,255,255,.07);
     transition: background .25s ease, box-shadow .25s ease, transform .3s var(--spring);
   }
   .composer:focus-within {
-    background:rgba(17,26,44,.82);
-    box-shadow:0 8px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.14);
+    background:rgba(17,26,44,.24);
+    box-shadow:0 4px 14px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.08);
   }
   textarea {
     flex:1; min-width:0; min-height:36px; max-height:88px; resize:none; overflow-y:auto;
@@ -321,7 +321,7 @@ const VERRE_VERT = `#version 300 es
 in vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
-const VERRE_FRAG = "#version 300 es\nprecision highp float;\nuniform vec2 u_resDev; uniform float u_scale; uniform vec2 u_centre; uniform vec2 u_demi;\nuniform float u_rayon; uniform float u_ior; uniform float u_bisel; uniform float u_disp;\nuniform float u_rim; uniform float u_angle; uniform vec3 u_tint;\nout vec4 fragColor;\nfloat sdRoundBox(vec2 p, vec2 b, float r){vec2 q=abs(p)-b+vec2(r);return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;}\nfloat sceneSDF(vec2 p){return sdRoundBox(p-u_centre,u_demi,u_rayon);}\nvoid main(){\nvec2 p=vec2(gl_FragCoord.x,u_resDev.y-gl_FragCoord.y)/u_scale;\nfloat d=sceneSDF(p);float aa=max(fwidth(d),0.75);float inside=1.0-smoothstep(-aa,aa,d);\nif(inside<=0.001){fragColor=vec4(0.0);return;}\nfloat depth=clamp(-d/max(u_bisel,1.0),0.0,1.0);float u=1.0-depth;\nfloat slope=min(0.5*u/sqrt(max(1.0-u*u,1e-3)),5.0);vec2 e=vec2(0.8,0.0);\nvec2 grad=vec2(sceneSDF(p+e.xy)-sceneSDF(p-e.xy),sceneSDF(p+e.yx)-sceneSDF(p-e.yx));\ngrad=normalize(grad+vec2(1e-5));vec3 n=normalize(vec3(grad*slope,1.0));\nvec3 incident=vec3(0.0,0.0,-1.0);float dispersion=clamp(u_disp,0.0,1.0)*0.12;\nvec3 rr=refract(incident,n,1.0/max(1.01,u_ior-dispersion));vec3 rb=refract(incident,n,1.0/max(1.01,u_ior+dispersion));\nfloat split=clamp(length(rr.xy-rb.xy)*2.8,0.0,1.0);float fresnel=pow(1.0-clamp(n.z,0.0,1.0),2.4);\nvec2 ld=vec2(cos(u_angle),-sin(u_angle));vec3 light=normalize(vec3(ld*0.85,0.75));\nvec3 halfv=normalize(light+vec3(0.0,0.0,1.0));float spec=pow(max(dot(n,halfv),0.0),72.0);\nfloat rim=fresnel*u_rim*(0.5+0.5*max(dot(grad,ld),0.0));\nvec3 prism=mix(vec3(0.35,0.85,1.0),vec3(1.0,0.48,0.86),clamp(rr.x-rb.x+0.5,0.0,1.0));\nvec3 edge=mix(u_tint,prism,split*u_disp)+vec3(spec*0.9+rim*0.55);\nfloat band=1.0-smoothstep(0.0,max(u_bisel,1.0),-d);\nfloat edgeAlpha=clamp((rim*0.55+spec*0.42+split*0.18)*band,0.0,0.72);\nfloat alpha=inside*clamp(0.12+edgeAlpha,0.0,0.82);\nvec3 color=mix(u_tint*0.35,edge,clamp(edgeAlpha*1.6,0.0,1.0));fragColor=vec4(color*alpha,alpha);\n}";
+const VERRE_FRAG = "#version 300 es\nprecision highp float;\nuniform vec2 u_resDev; uniform float u_scale; uniform vec2 u_centre; uniform vec2 u_demi;\nuniform float u_rayon; uniform float u_ior; uniform float u_bisel; uniform float u_disp;\nuniform float u_rim; uniform float u_angle; uniform vec3 u_tint; uniform sampler2D u_bg;\nuniform vec2 u_texSize; out vec4 fragColor;\nfloat sdRoundBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+vec2(r);return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;}\nfloat sceneSDF(vec2 p){return sdRoundBox(p-u_centre,u_demi,u_rayon);}\nvec3 bgAt(vec2 p){return texture(u_bg,clamp(p/u_texSize,vec2(.001),vec2(.999))).rgb;}\nvec2 limitOffset(vec2 v,float m){float l=length(v);return l>m?v*(m/l):v;}\nvoid main(){\n vec2 p=vec2(gl_FragCoord.x,u_resDev.y-gl_FragCoord.y)/u_scale;\n float d=sceneSDF(p),aa=max(fwidth(d),.7),inside=1.0-smoothstep(-aa,aa,d);\n if(inside<=.001){fragColor=vec4(0.0);return;}\n float bevel=max(u_bisel,2.0),profile=clamp(-d/bevel,0.0,1.0),u=1.0-profile;\n float slope=min(.5*u/sqrt(max(1.0-u*u,1e-3)),5.5);\n vec2 e=vec2(.7,0.0);\n vec2 grad=vec2(sceneSDF(p+e.xy)-sceneSDF(p-e.xy),sceneSDF(p+e.yx)-sceneSDF(p-e.yx));\n grad=normalize(grad+vec2(1e-5));vec3 n=normalize(vec3(grad*slope,1.0));\n vec3 I=vec3(0.0,0.0,-1.0);float chroma=clamp(u_disp,0.0,1.0)*.16;\n vec3 rR=refract(I,n,1.0/max(1.02,u_ior-chroma)),rG=refract(I,n,1.0/max(1.02,u_ior)),rB=refract(I,n,1.0/max(1.02,u_ior+chroma));\n float scale=bevel*.82;\n vec2 oR=limitOffset(rR.xy/max(abs(rR.z),.22)*scale,42.0);\n vec2 oG=limitOffset(rG.xy/max(abs(rG.z),.22)*scale,42.0);\n vec2 oB=limitOffset(rB.xy/max(abs(rB.z),.22)*scale,42.0);\n vec3 refr=vec3(bgAt(p+oR).r,bgAt(p+oG).g,bgAt(p+oB).b);\n vec3 soft=bgAt(p+oG)*.4+bgAt(p+oG+vec2(2.,0.))*.15+bgAt(p+oG-vec2(2.,0.))*.15+bgAt(p+oG+vec2(0.,2.))*.15+bgAt(p+oG-vec2(0.,2.))*.15;\n refr=mix(refr,soft,.035);\n float fresnel=pow(1.0-clamp(n.z,0.0,1.0),2.5);vec3 R=reflect(I,n);\n vec3 reflected=bgAt(p+limitOffset(R.xy/max(abs(R.z),.22)*bevel*.38,26.0));\n vec2 ld=vec2(cos(u_angle),-sin(u_angle));vec3 L=normalize(vec3(ld*.9,.72));\n vec3 H=normalize(L+vec3(0.,0.,1.));float spec=pow(max(dot(n,H),0.),58.);\n float rim=fresnel*u_rim*(.42+.58*clamp(dot(grad,ld),0.,1.));\n vec3 glass=refr*u_tint;glass=mix(glass,reflected,fresnel*.24);glass+=vec3(1.0)*(rim*.48+spec*.58);\n float edge=1.0-smoothstep(0.,bevel,-d);glass+=vec3(.24,.62,.85)*edge*.035;\n float alpha=inside*.985;vec3 color=mix(bgAt(p),glass,.78);\n fragColor=vec4(color*alpha,alpha);\n}";
 
 // Teinte du verre selon l'état : le verre change de couleur avec l'activité
 const TEINTES = {
@@ -348,6 +348,14 @@ function creerVerre(canvas, contenant) {
   gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
   gl.useProgram(prog);
+  const textureFond = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textureFond);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
   // Triangle plein écran
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -359,9 +367,19 @@ function creerVerre(canvas, contenant) {
   // Texture du fond, renvoyée à chaque image
   const U = {};
   ["u_resDev", "u_resCss", "u_scale", "u_centre", "u_demi", "u_rayon", "u_ior",
-   "u_bisel", "u_disp", "u_rim", "u_angle", "u_tint"]
+   "u_bisel", "u_disp", "u_rim", "u_angle", "u_tint", "u_bg", "u_texSize"]
     .forEach(nom => { U[nom] = gl.getUniformLocation(prog, nom); });
 
+  gl.uniform1i(U.u_bg, 0);
+  let imageFond = null, captureEnCours = false, dernierCapture = 0;
+  async function actualiserCapture(now) {
+    if (captureEnCours || now - dernierCapture < 75) return;
+    captureEnCours = true; dernierCapture = now;
+    try {
+      const data = await pywebview.api.capturer_fond();
+      if (data) { const img = new Image(); img.onload = () => { imageFond = img; }; img.src = data; }
+    } catch (_) {} finally { captureEnCours = false; }
+  }
   const teinte = [1, 1, 1];
   const cible = [1, 1, 1];
   const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -385,6 +403,7 @@ function creerVerre(canvas, contenant) {
     temps += dt * (reduit ? 0.3 : 1);
     for (let i = 0; i < 3; i++) teinte[i] += (cible[i] - teinte[i]) * 0.06;
 
+    actualiserCapture(now);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -403,6 +422,12 @@ function creerVerre(canvas, contenant) {
     gl.uniform1f(U.u_rim, 1.0);
     gl.uniform1f(U.u_angle, 120 * Math.PI / 180);
     gl.uniform3f(U.u_tint, teinte[0], teinte[1], teinte[2]);
+    gl.uniform2f(U.u_texSize, cssW, cssH);
+    if (imageFond && imageFond.complete && imageFond.naturalWidth > 0) {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textureFond);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageFond);
+    }
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     requestAnimationFrame(dessiner);
   }

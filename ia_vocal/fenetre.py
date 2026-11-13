@@ -6,9 +6,13 @@ import base64
 import ctypes
 import io
 import json
+import os
 import threading
 import time
 from pathlib import Path
+
+# Configure la transparence WebView2 avant la création du runtime.
+os.environ["WEBVIEW2_DEFAULT_BACKGROUND_COLOR"] = "00000000"
 
 import webview
 
@@ -247,6 +251,9 @@ def _afficher_dans_barre_des_taches() -> None:
     WS_CAPTION = 0x00C00000
     WS_EX_APPWINDOW = 0x00040000
     WS_EX_TOOLWINDOW = 0x00000080
+    WS_EX_LAYERED = 0x00080000
+    LWA_COLORKEY = 0x00000001
+    COULEUR_CLE_MAGENTA = 0x00FF00FF
     SWP_NOSIZE = 0x0001
     SWP_NOMOVE = 0x0002
     SWP_NOZORDER = 0x0004
@@ -263,8 +270,10 @@ def _afficher_dans_barre_des_taches() -> None:
     user32.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
 
     exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
-    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+    # Le fond magenta du host devient transparent au niveau du compositeur Windows.
+    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW | WS_EX_LAYERED
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
+    user32.SetLayeredWindowAttributes(hwnd, COULEUR_CLE_MAGENTA, 255, LWA_COLORKEY)
 
     # Windows 11 : demande à DWM de ne dessiner aucune bordure.
     try:
@@ -374,7 +383,8 @@ def lancer() -> None:
     fenetre = webview.create_window(
         TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
         width=LARGEUR, height=HAUTEUR, x=x, y=y,
-        frameless=True, transparent=True, shadow=False, on_top=False,
+        frameless=True, transparent=True, background_color="#FF00FF",
+        shadow=False, on_top=False,
     )
     api.fenetre = fenetre
     preparation.definir_sortie(api._message)

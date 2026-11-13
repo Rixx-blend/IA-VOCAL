@@ -49,8 +49,12 @@ class Api:
         if not hasattr(ctypes, "windll") or self.fenetre is None:
             return None
         try:
-            from PIL import ImageGrab
+            from PIL import Image, ImageGrab
             user32 = ctypes.windll.user32
+            user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+            user32.FindWindowW.restype = ctypes.c_void_p
+            user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+            user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
             hwnd = user32.FindWindowW(None, TITRE)
             if not hwnd:
                 return None

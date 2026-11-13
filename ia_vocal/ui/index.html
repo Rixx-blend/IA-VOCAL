@@ -54,7 +54,7 @@ body[data-etat="reflechit"] .composer{box-shadow:0 5px 18px rgba(0,0,0,.12),inse
           <canvas id="orbe" width="168" height="168"></canvas>
         </div>
         <div class="infos poignee" onmousedown="pywebview.api.debut_glisser()">
-          <div class="etiquette" id="libelle"><span class="status-dot"></span><span>IA VOCAL — PRÊTE</span></div>
+          <div class="etiquette" id="libelle"><span class="status-dot"></span><span>IA VOCAL • PRÊTE</span></div>
         </div>
       </div>
       <div class="controles">
@@ -265,7 +265,7 @@ function creerOrbe(canvas) {
   return { setEtat(etat) { palette = PALETTES[etat] || null; } };
 }
 
-const orbe = creerOrbe(document.getElementById("orbe"));
+const orbe = null; // L’orbe est retiré de l’en-tête minimaliste : aucune boucle WebGL inutile.
 
 // ===== Verre prisme : fond réfracté derrière la carte (préréglage « Prism ») =====
 // Réfraction de Snell par canal (dispersion RGB) sur les bords bombés ; centre peu déformé.

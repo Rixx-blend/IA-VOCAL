@@ -340,18 +340,11 @@ def _effet_verre() -> None:
     except Exception:
         pass
 
-    # Acrylic natif : flou réel du bureau derrière la fenêtre (Windows 10/11).
-    # La teinte est volontairement sombre pour conserver le contraste du texte.
+    # Désactive Mica/Acrylic : le shader WebGL affiche la capture réelle
+    # et calcule lui-même le flou ainsi que la réfraction périphérique.
     try:
-        ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-        ACCENT_FLAGS = 2
-        ACRYLIC_TINT_ABGR = 0xCC281E19  # alpha CC, RGB approx. 25/30/40
-        politique = _AccentPolicy(
-            ACCENT_ENABLE_ACRYLICBLURBEHIND,
-            ACCENT_FLAGS,
-            ACRYLIC_TINT_ABGR,
-            0,
-        )
+        ACCENT_DISABLED = 0
+        politique = _AccentPolicy(ACCENT_DISABLED, 0, 0, 0)
         donnees = _CompAttrData(
             19,
             ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
@@ -359,7 +352,6 @@ def _effet_verre() -> None:
         )
         user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
     except Exception:
-        # Le dégradé CSS opaque sert de repli si Acrylic est indisponible.
         pass
 
     # Découpe native de toute la fenêtre : aucun panneau Acrylic rectangulaire
@@ -379,7 +371,7 @@ def _effet_verre() -> None:
                 dpi = user32.GetDpiForWindow(hwnd) or 96
             except Exception:
                 dpi = 96
-            rayon = max(1, round(38 * dpi / 96))
+            rayon = max(1, round(48 * dpi / 96))
             gdi32 = ctypes.windll.gdi32
             gdi32.CreateRoundRectRgn.argtypes = [
                 ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,

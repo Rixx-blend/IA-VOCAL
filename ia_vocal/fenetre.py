@@ -305,10 +305,11 @@ def _effet_verre() -> None:
     if not hwnd:
         return
 
-    # Exclut l'overlay de la capture : le shader ne se filme jamais lui-même.
+    # L'overlay doit rester visible dans les captures d'écran et le partage d'écran.
+    # WDA_NONE (0) laisse Windows et les applications de capture l'enregistrer.
     try:
-        WDA_EXCLUDEFROMCAPTURE = 0x00000011
-        user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+        WDA_NONE = 0x00000000
+        user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
     except Exception:
         pass
 

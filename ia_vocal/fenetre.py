@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import ctypes
+import io
 import json
 import threading
 import time
@@ -37,6 +39,45 @@ class Api:
         en_attente, self._messages_en_attente = self._messages_en_attente, []
         for fonction, texte in en_attente:
             self._appeler(fonction, texte)
+
+    def capturer_fond(self) -> str | None:
+        """Capture la zone du bureau derrière l'overlay pour la réfraction WebGL."""
+        if not hasattr(ctypes, "windll") or self.fenetre is None:
+            return None
+        try:
+            from PIL import ImageGrab
+            user32 = ctypes.windll.user32
+            hwnd = user32.FindWindowW(None, TITRE)
+            if not hwnd:
+                return None
+
+            class POINT(ctypes.Structure):
+                _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+            class RECT(ctypes.Structure):
+                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                            ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+            rect = RECT()
+            if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
+                return None
+            origin = POINT(0, 0)
+            if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+                return None
+            width, height = rect.right - rect.left, rect.bottom - rect.top
+            if width <= 0 or height <= 0:
+                return None
+            shot = ImageGrab.grab(
+                bbox=(origin.x, origin.y, origin.x + width, origin.y + height),
+                all_screens=True,
+            )
+            shot.thumbnail((900, 500))
+            buffer = io.BytesIO()
+            shot.convert("RGB").save(buffer, format="JPEG", quality=68, optimize=True)
+            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+            return "data:image/jpeg;base64," + encoded
+        except Exception:
+            return None
 
     def envoyer(self, texte: str) -> bool:
         phrase = (texte or "").strip()
@@ -248,62 +289,48 @@ class _Rect(ctypes.Structure):
 
 
 def _effet_verre() -> None:
-    """Windows 10/11 : flou acrylique du bureau derrière la carte, découpe arrondie.
-
-    La découpe ne couvre que la carte (marge du corps de 10 px, rayon de 24 px),
-    ce qui supprime le rectangle clair autour de l'overlay.
-    """
+    """Supprime le flou DWM global et le cadre natif : le shader gère le verre."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
-    gdi32 = ctypes.windll.gdi32
     hwnd = user32.FindWindowW(None, TITRE)
     if not hwnd:
         return
-    try:
-        dpi = user32.GetDpiForWindow(hwnd) or 96
-    except Exception:
-        dpi = 96
-    echelle = dpi / 96
 
-    # Flou acrylique avec une teinte blanche translucide (AABBGGRR)
+    # Exclut l'overlay de la capture : le shader ne se filme jamais lui-même.
     try:
-        politique = _AccentPolicy(4, 2, 0x5010182A, 0)  # 4 = ACCENT_ACRYLIC_BLURBEHIND
+        WDA_EXCLUDEFROMCAPTURE = 0x00000011
+        user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+    except Exception:
+        pass
+
+    # Désactive Acrylic DWM : son flou uniforme écrasait les détails du bureau.
+    try:
+        politique = _AccentPolicy(0, 0, 0, 0)  # ACCENT_DISABLED
         donnees = _CompAttrData(
-            19,  # WCA_ACCENT_POLICY
-            ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
+            19, ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
             ctypes.sizeof(politique),
         )
         user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
     except Exception:
         pass
 
-    # Windows 11 : demande aussi le matériau système Acrylic/Transient.
-    # DWM actualise lui-même ce fond avec le bureau et les fenêtres derrière l'overlay.
+    # Aucun contour DWM ni matériau système additionnel.
     try:
         dwmapi = ctypes.windll.dwmapi
-        system_backdrop = ctypes.c_int(3)  # DWMSBT_TRANSIENTWINDOW
+        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)
         dwmapi.DwmSetWindowAttribute(
-            hwnd, 38, ctypes.byref(system_backdrop),
-            ctypes.sizeof(system_backdrop),
+            hwnd, 34, ctypes.byref(couleur_sans_bordure),
+            ctypes.sizeof(couleur_sans_bordure),
         )
-        mode_sombre = ctypes.c_int(1)
+        backdrop_none = ctypes.c_int(1)
         dwmapi.DwmSetWindowAttribute(
-            hwnd, 20, ctypes.byref(mode_sombre), ctypes.sizeof(mode_sombre),
+            hwnd, 38, ctypes.byref(backdrop_none), ctypes.sizeof(backdrop_none),
         )
-    except Exception:
-        pass
-
-    # Découpe : seule la carte est visible, avec ses coins arrondis
-    try:
-        rect = _Rect()
-        user32.GetClientRect(hwnd, ctypes.byref(rect))
-        marge = int(10 * echelle)
-        ellipse = int(48 * echelle)
-        region = gdi32.CreateRoundRectRgn(
-            marge, marge, rect.right - marge, rect.bottom - marge, ellipse, ellipse,
+        corner_none = ctypes.c_int(1)
+        dwmapi.DwmSetWindowAttribute(
+            hwnd, 33, ctypes.byref(corner_none), ctypes.sizeof(corner_none),
         )
-        user32.SetWindowRgn(hwnd, region, True)  # Windows garde la région
     except Exception:
         pass
 

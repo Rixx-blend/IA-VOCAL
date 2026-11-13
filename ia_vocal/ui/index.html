@@ -371,13 +371,13 @@ function creerVerre(canvas, contenant) {
     .forEach(nom => { U[nom] = gl.getUniformLocation(prog, nom); });
 
   gl.uniform1i(U.u_bg, 0);
-  let imageFond = null, captureEnCours = false, dernierCapture = 0;
+  let imageFond = null, textureSale = false, captureEnCours = false, dernierCapture = 0;
   async function actualiserCapture(now) {
     if (captureEnCours || now - dernierCapture < 75) return;
     captureEnCours = true; dernierCapture = now;
     try {
       const data = await pywebview.api.capturer_fond();
-      if (data) { const img = new Image(); img.onload = () => { imageFond = img; }; img.src = data; }
+      if (data) { const img = new Image(); img.onload = () => { imageFond = img; textureSale = true; }; img.src = data; }
     } catch (_) {} finally { captureEnCours = false; }
   }
   const teinte = [1, 1, 1];
@@ -423,9 +423,10 @@ function creerVerre(canvas, contenant) {
     gl.uniform1f(U.u_angle, 120 * Math.PI / 180);
     gl.uniform3f(U.u_tint, teinte[0], teinte[1], teinte[2]);
     gl.uniform2f(U.u_texSize, cssW, cssH);
-    if (imageFond && imageFond.complete && imageFond.naturalWidth > 0) {
+    if (textureSale && imageFond && imageFond.complete && imageFond.naturalWidth > 0) {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textureFond);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageFond);
+      textureSale = false;
     }
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

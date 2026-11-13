@@ -285,34 +285,9 @@ def _effet_verre() -> None:
     except Exception:
         pass
 
-    # Acrylic natif DWM : le bureau est flouté derrière la fenêtre par Windows.
-    # Contrairement à ImageGrab, aucun rendu de l'overlay n'est réinjecté dans
-    # sa propre texture, et le résultat composé reste capturable/partageable.
-    try:
-        ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-        ACCENT_FLAGS = 2
-        # Format ABGR : voile gris clair semi-transparent.
-        ACRYLIC_TINT = 0xB8202838
-        politique = _AccentPolicy(
-            ACCENT_ENABLE_ACRYLICBLURBEHIND,
-            ACCENT_FLAGS,
-            ACRYLIC_TINT,
-            0,
-        )
-        donnees = _CompAttrData(
-            19,
-            ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
-            ctypes.sizeof(politique),
-        )
-        user32.SetWindowCompositionAttribute.argtypes = [
-            ctypes.c_void_p, ctypes.POINTER(_CompAttrData)
-        ]
-        user32.SetWindowCompositionAttribute.restype = ctypes.c_bool
-        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
-    except Exception:
-        pass
+    # Aucun backdrop Acrylic : il créait un rectangle opaque derrière le verre CSS.
 
-    # Découpe native arrondie, en conservant la composition DWM.
+    # Découpe native arrondie, sans fond natif opaque.
     try:
         class RECT(ctypes.Structure):
             _fields_ = [

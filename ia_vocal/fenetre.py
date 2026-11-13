@@ -75,19 +75,37 @@ class Api:
                 dpi = user32.GetDpiForWindow(hwnd) or 96
             except Exception:
                 dpi = 96
-            marge = round(10 * dpi / 96)  # padding CSS du body
-            # Ne bascule jamais DisplayAffinity pendant le partage :
-            # le changement répété faisait clignoter l'overlay dans les captures.
-            shot = ImageGrab.grab(
-                bbox=(
-                    origin.x + marge, origin.y + marge,
-                    origin.x + width - marge, origin.y + height - marge,
-                ),
-                all_screens=True,
+            marge = round(16 * dpi / 96)  # marge transparente CSS autour de la vitre
+            # WDA_EXCLUDEFROMCAPTURE retire cette fenêtre de la capture.
+            # L'affinité est restaurée immédiatement après chaque image.
+            WDA_NONE = 0x00000000
+            WDA_EXCLUDEFROMCAPTURE = 0x00000011
+            affinite_active = bool(
+                user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
             )
-            shot.thumbnail((900, 500))
+            if not affinite_active:
+                return None
+            try:
+                shot = ImageGrab.grab(
+                    bbox=(
+                        origin.x + marge, origin.y + marge,
+                        origin.x + width - marge, origin.y + height - marge,
+                    ),
+                    all_screens=True,
+                )
+            finally:
+                user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
+
+            # Aligne la texture sur les dimensions CSS attendues par le shader.
+            echelle = max(1.0, dpi / 96.0)
+            taille = (
+                max(1, round((width - 2 * marge) / echelle)),
+                max(1, round((height - 2 * marge) / echelle)),
+            )
+            if shot.size != taille:
+                shot = shot.resize(taille, Image.Resampling.BILINEAR)
             buffer = io.BytesIO()
-            shot.convert("RGB").save(buffer, format="JPEG", quality=68, optimize=True)
+            shot.convert("RGB").save(buffer, format="JPEG", quality=78, optimize=True)
             encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
             return "data:image/jpeg;base64," + encoded
         except Exception:

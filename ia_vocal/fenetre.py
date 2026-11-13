@@ -278,6 +278,22 @@ def _effet_verre() -> None:
     except Exception:
         pass
 
+    # Windows 11 : demande aussi le matériau système Acrylic/Transient.
+    # DWM actualise lui-même ce fond avec le bureau et les fenêtres derrière l'overlay.
+    try:
+        dwmapi = ctypes.windll.dwmapi
+        system_backdrop = ctypes.c_int(3)  # DWMSBT_TRANSIENTWINDOW
+        dwmapi.DwmSetWindowAttribute(
+            hwnd, 38, ctypes.byref(system_backdrop),
+            ctypes.sizeof(system_backdrop),
+        )
+        mode_sombre = ctypes.c_int(1)
+        dwmapi.DwmSetWindowAttribute(
+            hwnd, 20, ctypes.byref(mode_sombre), ctypes.sizeof(mode_sombre),
+        )
+    except Exception:
+        pass
+
     # Découpe : seule la carte est visible, avec ses coins arrondis
     try:
         rect = _Rect()

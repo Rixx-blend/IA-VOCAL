@@ -308,7 +308,7 @@ class _Rect(ctypes.Structure):
 
 
 def _effet_verre() -> None:
-    """Supprime le flou DWM global et le cadre natif : le shader gère le verre."""
+    """Active le matériau Acrylic Windows et découpe la fenêtre en coins arrondis."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
@@ -316,27 +316,62 @@ def _effet_verre() -> None:
     if not hwnd:
         return
 
-    # L'overlay doit rester visible dans les captures d'écran et le partage d'écran.
-    # WDA_NONE (0) laisse Windows et les applications de capture l'enregistrer.
+    # L'overlay reste inclus dans les captures et le partage d'écran.
     try:
-        WDA_NONE = 0x00000000
-        user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
+        user32.SetWindowDisplayAffinity(hwnd, 0)  # WDA_NONE
     except Exception:
         pass
 
-    # Désactive Acrylic DWM : son flou uniforme écrasait les détails du bureau.
+    # Acrylic natif : flou réel du bureau derrière la fenêtre (Windows 10/11).
+    # La teinte est volontairement sombre pour conserver le contraste du texte.
     try:
-        politique = _AccentPolicy(0, 0, 0, 0)  # ACCENT_DISABLED
+        ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+        ACCENT_FLAGS = 2
+        ACRYLIC_TINT_ABGR = 0xCC281E19  # alpha CC, RGB approx. 25/30/40
+        politique = _AccentPolicy(
+            ACCENT_ENABLE_ACRYLICBLURBEHIND,
+            ACCENT_FLAGS,
+            ACRYLIC_TINT_ABGR,
+            0,
+        )
         donnees = _CompAttrData(
-            19, ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
+            19,
+            ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
             ctypes.sizeof(politique),
         )
         user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
     except Exception:
+        # Le dégradé CSS opaque sert de repli si Acrylic est indisponible.
         pass
 
-    # Transparence native : aucun Mica/Acrylic/DWM backdrop derrière le WebView.
-    # La surface HTML dessine elle-même les coins et les reflets du verre.
+    # Découpe native de toute la fenêtre : aucun panneau Acrylic rectangulaire
+    # ne doit dépasser des coins arrondis du composant HTML.
+    try:
+        class RECT(ctypes.Structure):
+            _fields_ = [
+                ("left", ctypes.c_long), ("top", ctypes.c_long),
+                ("right", ctypes.c_long), ("bottom", ctypes.c_long),
+            ]
+
+        rect = RECT()
+        if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            largeur = max(1, rect.right - rect.left)
+            hauteur = max(1, rect.bottom - rect.top)
+            try:
+                dpi = user32.GetDpiForWindow(hwnd) or 96
+            except Exception:
+                dpi = 96
+            rayon = max(1, round(38 * dpi / 96))
+            region = ctypes.windll.gdi32.CreateRoundRectRgn(
+                0, 0, largeur + 1, hauteur + 1, rayon * 2, rayon * 2
+            )
+            if region:
+                if not user32.SetWindowRgn(hwnd, region, True):
+                    ctypes.windll.gdi32.DeleteObject(region)
+    except Exception:
+        pass
+
+    # Conserve l'absence de cadre natif Windows.
     try:
         dwmapi = ctypes.windll.dwmapi
         couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)  # DWMWA_COLOR_NONE
@@ -344,18 +379,13 @@ def _effet_verre() -> None:
             hwnd, 34, ctypes.byref(couleur_sans_bordure),
             ctypes.sizeof(couleur_sans_bordure),
         )
-        backdrop_none = ctypes.c_int(1)  # DWMSBT_NONE
+        corner_round = ctypes.c_int(2)  # DWMWCP_ROUND
         dwmapi.DwmSetWindowAttribute(
-            hwnd, 38, ctypes.byref(backdrop_none), ctypes.sizeof(backdrop_none),
-        )
-        corner_default = ctypes.c_int(0)  # Le clipping CSS gère les coins arrondis
-        dwmapi.DwmSetWindowAttribute(
-            hwnd, 33, ctypes.byref(corner_default), ctypes.sizeof(corner_default),
+            hwnd, 33, ctypes.byref(corner_round), ctypes.sizeof(corner_round),
         )
     except Exception:
         pass
 
-    # Force Windows à recalculer la frame après le retrait du cadre natif.
     try:
         SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER = 0x0001, 0x0002, 0x0004
         SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x0010, 0x0020

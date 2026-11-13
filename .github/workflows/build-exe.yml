@@ -1,31 +1,46 @@
-name: Build Windows EXE
+name: Build and Release IA VOCAL
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build-and-release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Récupérer le code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Installer Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Installer les dépendances de build
+      - name: Installer les dépendances
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
 
       - name: Compiler IA-VOCAL.exe
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name IA-VOCAL --collect-all webview --collect-all vosk --add-data "ia_vocal/ui;ia_vocal/ui" run.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name IA-VOCAL --collect-all webview --collect-all vosk --add-data "ia_vocal/ui;ia_vocal/ui" run.py
 
-      - name: Publier l'exécutable
-        uses: actions/upload-artifact@v4
+      - name: Publier une nouvelle version GitHub avec le .exe
+        uses: softprops/action-gh-release@v2
         with:
-          name: IA-VOCAL-windows
-          path: dist/IA-VOCAL.exe
+          tag_name: v1.0.${{ github.run_number }}
+          name: IA VOCAL v1.0.${{ github.run_number }}
+          body: |
+            Nouvelle version automatique de IA VOCAL.
+
+            - Exécutable Windows : IA-VOCAL.exe
+            - Commit : ${{ github.sha }}
+          files: dist/IA-VOCAL.exe
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true

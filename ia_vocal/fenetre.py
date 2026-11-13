@@ -357,6 +357,7 @@ def lancer() -> None:
     # son cadre natif. On retire donc le cadre à chaque restauration.
     def apres_restauration() -> None:
         time.sleep(0.18)
+        _configurer_transparence_native(fenetre)
         _afficher_dans_barre_des_taches()
         _effet_verre()
         try:

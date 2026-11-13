@@ -306,6 +306,25 @@ def _effet_verre() -> None:
         pass
 
 
+def _configurer_transparence_native(fenetre) -> None:
+    """Rend la couleur de fond WinForms transparente sans backdrop DWM."""
+    try:
+        from System import Action
+        from System.Drawing import Color
+
+        native = fenetre.native
+
+        def appliquer() -> None:
+            # WebView2 transmet l'alpha ; TransparencyKey retire le fond du Form.
+            # Le magenta n'est jamais affiché : il sert uniquement de clé native.
+            native.BackColor = Color.Magenta
+            native.TransparencyKey = Color.Magenta
+
+        native.Invoke(Action(appliquer))
+    except Exception:
+        pass
+
+
 def _coordonnees_coherentes() -> None:
     if hasattr(ctypes, "windll"):
         try:
@@ -321,7 +340,7 @@ def lancer() -> None:
     fenetre = webview.create_window(
         TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
         width=LARGEUR, height=HAUTEUR, x=x, y=y,
-        frameless=True, transparent=True, background_color="#000000",
+        frameless=True, transparent=True, background_color="#FF00FF",
         shadow=False, on_top=False,
     )
     api.fenetre = fenetre
@@ -330,6 +349,7 @@ def lancer() -> None:
 
     def apres_demarrage() -> None:
         time.sleep(0.8)
+        _configurer_transparence_native(fenetre)
         _afficher_dans_barre_des_taches()
         _effet_verre()
 

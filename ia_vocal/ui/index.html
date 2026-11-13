@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <style>
   :root {
-    color-scheme: light;
-    --ink: #171923;
-    --muted: #707786;
-    --accent: #252a36;
+    color-scheme: dark;
+    --ink: #edf3ff;
+    --muted: #8c9ab5;
+    --accent: #9de8f2;
     --spring: cubic-bezier(.175,.885,.32,1.18);
   }
   * { box-sizing: border-box; }
@@ -21,8 +21,8 @@
     position: relative; width: 100%; height: 100%; padding: 13px 16px 14px;
     display: flex; flex-direction: column; gap: 9px; overflow: hidden;
     border: 0 !important; outline: 0 !important; border-radius: 24px;
-    background: rgba(245,247,250,.76);
-    box-shadow: 0 10px 34px rgba(18,24,38,.10);
+    background: rgba(10,15,28,.22);
+    box-shadow: 0 18px 55px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.16);
     -webkit-app-region: no-drag;
   }
   /* Verre prisme : la carte est dessinée en WebGL ; repli CSS si WebGL2 manque */
@@ -35,8 +35,8 @@
   .zone-orbe { width:42px; height:42px; flex:none; cursor:move; }
   #orbe { width:42px; height:42px; display:block; }
   .infos { display:flex; flex-direction:column; gap:2px; min-width:0; cursor:move; }
-  .marque { font-size:10px; letter-spacing:.13em; font-weight:800; color:#737b89; }
-  .etiquette { font-size:13px; font-weight:650; color:#202532; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .marque { font-size:10px; letter-spacing:.13em; font-weight:800; color:rgba(221,232,255,.62); }
+  .etiquette { font-size:13px; font-weight:650; color:#f0f5ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .controles { display:flex; gap:6px; }
   button {
     border:0; outline:0; cursor:pointer; font:inherit; color:var(--ink);
@@ -46,45 +46,45 @@
   button:hover { transform:translateY(-1px); }
   button:active { transform:scale(.93); }
   .controles button {
-    width:30px; height:30px; border-radius:10px; background:rgba(30,36,48,.055);
-    color:#596171; font-size:15px;
+    width:30px; height:30px; border-radius:10px; background:rgba(255,255,255,.09);
+    color:#d8e4f8; font-size:15px;
   }
-  .controles button:hover { background:rgba(30,36,48,.11); }
+  .controles button:hover { background:rgba(255,255,255,.16); }
   .message {
     flex:1; min-height:25px; max-height:82px; overflow:auto; padding:1px 3px;
-    color:#343b49; font-size:13px; line-height:1.45; font-weight:500;
+    color:#e5edff; font-size:13px; line-height:1.45; font-weight:500;
     overflow-wrap:anywhere; scrollbar-width:thin;
   }
   .composer {
     display:flex; align-items:flex-end; gap:8px; padding:8px 8px 8px 14px;
-    min-height:54px; border-radius:19px; background:rgba(255,255,255,.84);
-    border:1px solid rgba(90,100,120,.10);
-    box-shadow:0 3px 12px rgba(20,26,40,.045);
+    min-height:54px; border-radius:19px; background:rgba(9,15,29,.58);
+    border:1px solid rgba(220,240,255,.14);
+    box-shadow:0 8px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.10);
     transition: background .25s ease, box-shadow .25s ease, transform .3s var(--spring);
   }
   .composer:focus-within {
-    background:rgba(255,255,255,.97);
-    box-shadow:0 5px 18px rgba(20,26,40,.08);
+    background:rgba(17,26,44,.82);
+    box-shadow:0 8px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.14);
   }
   textarea {
     flex:1; min-width:0; min-height:36px; max-height:88px; resize:none; overflow-y:auto;
     padding:9px 0 7px; border:0 !important; outline:0 !important;
     background:transparent !important; box-shadow:none !important;
-    color:#202532; font:500 13px/20px "Segoe UI",system-ui,sans-serif;
+    color:#f0f5ff; font:500 13px/20px "Segoe UI",system-ui,sans-serif;
     scrollbar-width:thin;
   }
-  textarea::placeholder { color:#9299a5; }
+  textarea::placeholder { color:#8c9ab5; }
   .actions { display:flex; align-items:center; gap:6px; flex:none; }
   .action {
     width:36px; height:36px; border-radius:13px;
-    background:rgba(36,43,57,.055); color:#515a6a;
+    background:rgba(255,255,255,.10); color:#dbe8fb;
   }
-  .action:hover { background:rgba(36,43,57,.11); }
+  .action:hover { background:rgba(255,255,255,.18); }
   .action.principal {
-    color:white; background:#202633; border-radius:13px;
-    box-shadow:0 3px 8px rgba(20,25,36,.16);
+    color:#07121d; background:linear-gradient(135deg,#b8fff0,#8bdcf4 55%,#b8b8ff); border-radius:13px;
+    box-shadow:0 4px 16px rgba(100,210,255,.24);
   }
-  .action.principal:hover { background:#343c4d; }
+  .action.principal:hover { background:linear-gradient(135deg,#d0fff5,#a4eaff); }
   .action.micro.actif { color:#fff; background:#1689c7; box-shadow:0 0 0 4px rgba(22,137,199,.12); }
   svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
   .poignee { cursor:move; }
@@ -403,8 +403,8 @@ void main() {
 
 // Teinte du verre selon l'état : le verre change de couleur avec l'activité
 const TEINTES = {
-  repos: [1, 1, 1], ecoute: [0.72, 0.95, 1], reflechit: [0.9, 0.85, 1],
-  parle: [0.86, 0.93, 1], agit: [1, 0.92, 0.78],
+  repos: [0.82, 0.94, 1], ecoute: [0.52, 0.92, 1], reflechit: [0.78, 0.68, 1],
+  parle: [0.62, 0.86, 1], agit: [1, 0.72, 0.48],
 };
 
 function creerVerre(canvas, contenant) {
@@ -471,27 +471,31 @@ function creerVerre(canvas, contenant) {
   function dessinerFond(t) {
     const w = fond.width, h = fond.height, c = fctx;
     const g = c.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, "#eef3f9");
-    g.addColorStop(1, "#fbfcfe");
+    g.addColorStop(0, "#10182b");
+    g.addColorStop(1, "#080d19");
     c.fillStyle = g;
     c.fillRect(0, 0, w, h);
 
     // Halos pastel qui dérivent
-    ["#7dd3fc", "#c4b5fd", "#fde68a", "#a7f3d0"].forEach((col, i) => {
+    ["#25c9e8", "#7867f4", "#e56cbb", "#56e0bd"].forEach((col, i) => {
       const x = w * (0.5 + 0.42 * Math.sin(t * 0.14 * (i + 1) + i * 1.7));
       const y = h * (0.5 + 0.38 * Math.cos(t * 0.11 * (i + 2) + i * 2.3));
       const rg = c.createRadialGradient(x, y, 0, x, y, Math.max(w, h) * 0.5);
-      rg.addColorStop(0, col + "b3");
+      rg.addColorStop(0, col + "88");
       rg.addColorStop(1, col + "00");
       c.fillStyle = rg;
       c.fillRect(0, 0, w, h);
     });
 
     // Points fins : ce sont eux qui rendent la réfraction lisible
-    c.fillStyle = "rgba(20, 28, 40, 0.22)";
-    for (let y = 8; y < h; y += 12) {
-      for (let x = 8; x < w; x += 12) c.fillRect(x - 1, y - 1, 2, 2);
+    c.fillStyle = "rgba(205, 231, 255, 0.11)";
+    for (let y = 8; y < h; y += 14) {
+      for (let x = 8; x < w; x += 14) c.fillRect(x - 1, y - 1, 1.4, 1.4);
     }
+    c.strokeStyle = "rgba(190,220,255,.045)";
+    c.lineWidth = 1;
+    for (let x = 0; x < w; x += 28) { c.beginPath(); c.moveTo(x,0); c.lineTo(x,h); c.stroke(); }
+    for (let y = 0; y < h; y += 28) { c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke(); }
   }
 
   function dessiner(now) {

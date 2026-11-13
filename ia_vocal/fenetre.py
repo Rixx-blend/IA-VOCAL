@@ -321,10 +321,12 @@ class _Rect(ctypes.Structure):
 
 
 def _effet_verre() -> None:
-    """Active le matériau Acrylic Windows et découpe la fenêtre en coins arrondis."""
+    """Configure l’exclusion de capture et le découpage arrondi de la vitre."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
+    user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    user32.FindWindowW.restype = ctypes.c_void_p
     hwnd = user32.FindWindowW(None, TITRE)
     if not hwnd:
         return
@@ -332,7 +334,6 @@ def _effet_verre() -> None:
     # Exclut l'overlay de toutes les captures Windows standard.
     # Il reste visible sur le moniteur, mais pas dans les captures/partages.
     try:
-        user32.FindWindowW.restype = ctypes.c_void_p
         user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
         user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
         user32.SetWindowDisplayAffinity(hwnd, 0x00000011)  # WDA_EXCLUDEFROMCAPTURE

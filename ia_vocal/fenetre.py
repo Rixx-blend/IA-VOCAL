@@ -67,8 +67,16 @@ class Api:
             width, height = rect.right - rect.left, rect.bottom - rect.top
             if width <= 0 or height <= 0:
                 return None
+            try:
+                dpi = user32.GetDpiForWindow(hwnd) or 96
+            except Exception:
+                dpi = 96
+            marge = round(10 * dpi / 96)  # padding CSS du body
             shot = ImageGrab.grab(
-                bbox=(origin.x, origin.y, origin.x + width, origin.y + height),
+                bbox=(
+                    origin.x + marge, origin.y + marge,
+                    origin.x + width - marge, origin.y + height - marge,
+                ),
                 all_screens=True,
             )
             shot.thumbnail((900, 500))

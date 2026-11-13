@@ -268,7 +268,7 @@ def _effet_verre() -> None:
 
     # Flou acrylique avec une teinte blanche translucide (AABBGGRR)
     try:
-        politique = _AccentPolicy(4, 2, 0x52FFFFFF, 0)  # 4 = ACCENT_ACRYLIC_BLURBEHIND
+        politique = _AccentPolicy(4, 2, 0x5010182A, 0)  # 4 = ACCENT_ACRYLIC_BLURBEHIND
         donnees = _CompAttrData(
             19,  # WCA_ACCENT_POLICY
             ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),

@@ -395,7 +395,10 @@ void main() {
   verre = clamp(verre, 0.0, 1.0);
 
   // Sortie prémultipliée : transparent hors de la carte
-  fragColor = vec4(verre * dedans, dedans);
+  // Centre presque transparent (le flou du bureau le traverse), bords opaques et irisés
+  float voile = clamp(0.14 + 0.86 * max(F, bord), 0.0, 1.0);
+  float a = dedans * voile;
+  fragColor = vec4(verre * a, a);
 }`;
 
 // Teinte du verre selon l'état : le verre change de couleur avec l'activité

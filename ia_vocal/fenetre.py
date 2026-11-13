@@ -232,6 +232,66 @@ def _afficher_dans_barre_des_taches() -> None:
     )
 
 
+class _AccentPolicy(ctypes.Structure):
+    _fields_ = [
+        ("AccentState", ctypes.c_uint), ("AccentFlags", ctypes.c_uint),
+        ("GradientColor", ctypes.c_uint), ("AnimationId", ctypes.c_uint),
+    ]
+
+
+class _CompAttrData(ctypes.Structure):
+    _fields_ = [("Attribute", ctypes.c_int), ("Data", ctypes.c_void_p), ("SizeOfData", ctypes.c_size_t)]
+
+
+class _Rect(ctypes.Structure):
+    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+
+def _effet_verre() -> None:
+    """Windows 10/11 : flou acrylique du bureau derrière la carte, découpe arrondie.
+
+    La découpe ne couvre que la carte (marge du corps de 10 px, rayon de 24 px),
+    ce qui supprime le rectangle clair autour de l'overlay.
+    """
+    if not hasattr(ctypes, "windll"):
+        return
+    user32 = ctypes.windll.user32
+    gdi32 = ctypes.windll.gdi32
+    hwnd = user32.FindWindowW(None, TITRE)
+    if not hwnd:
+        return
+    try:
+        dpi = user32.GetDpiForWindow(hwnd) or 96
+    except Exception:
+        dpi = 96
+    echelle = dpi / 96
+
+    # Flou acrylique avec une teinte blanche translucide (AABBGGRR)
+    try:
+        politique = _AccentPolicy(4, 2, 0x52FFFFFF, 0)  # 4 = ACCENT_ACRYLIC_BLURBEHIND
+        donnees = _CompAttrData(
+            19,  # WCA_ACCENT_POLICY
+            ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
+            ctypes.sizeof(politique),
+        )
+        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
+    except Exception:
+        pass
+
+    # Découpe : seule la carte est visible, avec ses coins arrondis
+    try:
+        rect = _Rect()
+        user32.GetClientRect(hwnd, ctypes.byref(rect))
+        marge = int(10 * echelle)
+        ellipse = int(48 * echelle)
+        region = gdi32.CreateRoundRectRgn(
+            marge, marge, rect.right - marge, rect.bottom - marge, ellipse, ellipse,
+        )
+        user32.SetWindowRgn(hwnd, region, True)  # Windows garde la région
+    except Exception:
+        pass
+
+
 def _coordonnees_coherentes() -> None:
     if hasattr(ctypes, "windll"):
         try:
@@ -256,12 +316,14 @@ def lancer() -> None:
     def apres_demarrage() -> None:
         time.sleep(0.8)
         _afficher_dans_barre_des_taches()
+        _effet_verre()
 
     # Pywebview peut restaurer la fenêtre après une minimisation en réappliquant
     # son cadre natif. On retire donc le cadre à chaque restauration.
     def apres_restauration() -> None:
         time.sleep(0.18)
         _afficher_dans_barre_des_taches()
+        _effet_verre()
         try:
             fenetre.evaluate_js(
                 "document.documentElement.style.background='transparent';"

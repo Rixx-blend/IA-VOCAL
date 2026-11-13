@@ -72,13 +72,26 @@ class Api:
             except Exception:
                 dpi = 96
             marge = round(10 * dpi / 96)  # padding CSS du body
-            shot = ImageGrab.grab(
-                bbox=(
-                    origin.x + marge, origin.y + marge,
-                    origin.x + width - marge, origin.y + height - marge,
-                ),
-                all_screens=True,
-            )
+            # Exclut temporairement l'overlay de la capture Windows.
+            # Sans cela, ImageGrab photographie le verre lui-même : la texture
+            # réinjecte alors l'image précédente et crée une boucle visuelle.
+            WDA_NONE = 0x00000000
+            WDA_EXCLUDEFROMCAPTURE = 0x00000011
+            affinity_change = False
+            try:
+                affinity_change = bool(
+                    user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+                )
+                shot = ImageGrab.grab(
+                    bbox=(
+                        origin.x + marge, origin.y + marge,
+                        origin.x + width - marge, origin.y + height - marge,
+                    ),
+                    all_screens=True,
+                )
+            finally:
+                if affinity_change:
+                    user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
             shot.thumbnail((900, 500))
             buffer = io.BytesIO()
             shot.convert("RGB").save(buffer, format="JPEG", quality=68, optimize=True)

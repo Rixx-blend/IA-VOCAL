@@ -131,8 +131,8 @@ PAGE = Path(__file__).parent / "ui" / "index.html"
 
 class Api:
     def __init__(self) -> None:
-        self.fenetre = None
-        self.ecoute = Ecoute()
+        self._fenetre = None
+        self._ecoute = Ecoute()
         self._glisse_en_cours = False
         self._traitement = threading.Lock()
         self._interface_prete = False
@@ -147,7 +147,7 @@ class Api:
 
     def capturer_fond(self) -> str | None:
         """Capture la zone du bureau derrière l'overlay pour la réfraction WebGL."""
-        if not hasattr(ctypes, "windll") or self.fenetre is None:
+        if not hasattr(ctypes, "windll") or self._fenetre is None:
             return None
         try:
             from PIL import Image, ImageGrab
@@ -220,12 +220,12 @@ class Api:
         return True
 
     def ecouter(self) -> bool:
-        if self.ecoute.active:
-            self.ecoute.arreter()
+        if self._ecoute.active:
+            self._ecoute.arreter()
             self._etat("repos")
             self._message("Écoute désactivée.")
             return False
-        if not self.ecoute.demarrer():
+        if not self._ecoute.demarrer():
             self._message("Impossible de démarrer le micro.")
             return False
         self._etat("ecoute")
@@ -249,11 +249,11 @@ class Api:
         curseur = POINT()
         user32.GetCursorPos(ctypes.byref(curseur))
         depart_souris = (curseur.x, curseur.y)
-        depart_fenetre = (self.fenetre.x, self.fenetre.y)
+        depart_fenetre = (self._fenetre.x, self._fenetre.y)
         try:
             while user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000:
                 user32.GetCursorPos(ctypes.byref(curseur))
-                self.fenetre.move(
+                self._fenetre.move(
                     depart_fenetre[0] + curseur.x - depart_souris[0],
                     depart_fenetre[1] + curseur.y - depart_souris[1],
                 )
@@ -271,13 +271,13 @@ class Api:
             user32.SetForegroundWindow(hwnd)
 
     def minimiser(self) -> None:
-        if self.fenetre:
-            self.fenetre.minimize()
+        if self._fenetre:
+            self._fenetre.minimize()
 
     def quitter(self) -> None:
-        self.ecoute.arreter()
-        if self.fenetre:
-            self.fenetre.destroy()
+        self._ecoute.arreter()
+        if self._fenetre:
+            self._fenetre.destroy()
 
     def _traiter(self, texte: str) -> None:
         with self._traitement:
@@ -304,9 +304,9 @@ class Api:
             self._repondre(resultat or "C'est fait.")
 
     def _attendre_voix(self) -> None:
-        while self.ecoute.active:
+        while self._ecoute.active:
             try:
-                genre, texte = self.ecoute.resultats.get(timeout=0.35)
+                genre, texte = self._ecoute.resultats.get(timeout=0.35)
             except Exception:
                 continue
             if genre == "phrase":
@@ -320,12 +320,12 @@ class Api:
     def _repondre(self, texte: str) -> None:
         self._message(texte)
         self._etat("parle")
-        self.ecoute.suspendre_sortie_vocale(True)
+        self._ecoute.suspendre_sortie_vocale(True)
         try:
             _parler(texte)
         finally:
-            self.ecoute.suspendre_sortie_vocale(False)
-        self._etat("ecoute" if self.ecoute.active else "repos")
+            self._ecoute.suspendre_sortie_vocale(False)
+        self._etat("ecoute" if self._ecoute.active else "repos")
 
     def _etat(self, etat: str) -> None:
         self._appeler("setEtat", etat)
@@ -334,7 +334,7 @@ class Api:
         self._appeler("setMessage", texte)
 
     def _appeler(self, fonction: str, *arguments: str) -> None:
-        if self.fenetre is None:
+        if self._fenetre is None:
             return
         if not self._interface_prete:
             if arguments:
@@ -342,7 +342,7 @@ class Api:
             return
         args = ",".join(json.dumps(a, ensure_ascii=False) for a in arguments)
         try:
-            self.fenetre.evaluate_js(f"{fonction}({args})")
+            self._fenetre.evaluate_js(f"{fonction}({args})")
         except Exception:
             pass
 
@@ -543,7 +543,7 @@ def lancer() -> None:
         frameless=True, transparent=True,
         shadow=False, on_top=False,
     )
-    api.fenetre = fenetre
+    api._fenetre = fenetre
     _demarrer_fond()
     preparation.definir_sortie(api._message)
     preparation.lancer_en_arriere_plan()

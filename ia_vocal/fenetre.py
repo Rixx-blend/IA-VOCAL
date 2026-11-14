@@ -509,7 +509,7 @@ def _effet_verre() -> None:
                 ctypes.wintypes.POINT(e(548), e(234)),
             )
             body = gdi32.CreateRoundRectRgn(
-                0, 0, e(largeur + 1), e(hauteur - 28), rayon * 2, rayon * 2
+                0, 0, e(largeur + 1), e(hauteur - 18), rayon * 2, rayon * 2
             )
             tail = gdi32.CreatePolygonRgn(points, len(points), 2)
             if body and tail:

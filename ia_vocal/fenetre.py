@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import ctypes
+import io
 import json
 import os
 import threading
@@ -41,6 +43,73 @@ class Api:
         en_attente, self._messages_en_attente = self._messages_en_attente, []
         for fonction, texte in en_attente:
             self._appeler(fonction, texte)
+
+    def capturer_fond(self) -> str | None:
+        """Capture la zone du bureau derrière l'overlay pour la réfraction WebGL."""
+        if not hasattr(ctypes, "windll") or self.fenetre is None:
+            return None
+        try:
+            from PIL import ImageGrab
+            user32 = ctypes.windll.user32
+            hwnd = user32.FindWindowW(None, TITRE)
+            if not hwnd:
+                return None
+
+            class POINT(ctypes.Structure):
+                _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+            class RECT(ctypes.Structure):
+                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                            ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+            rect = RECT()
+            if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
+                return None
+            origin = POINT(0, 0)
+            if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+                return None
+            width, height = rect.right - rect.left, rect.bottom - rect.top
+            if width <= 0 or height <= 0:
+                return None
+            try:
+                dpi = user32.GetDpiForWindow(hwnd) or 96
+            except Exception:
+                dpi = 96
+            marge = round(16 * dpi / 96)  # marge transparente CSS autour de la vitre
+            # WDA_EXCLUDEFROMCAPTURE retire cette fenêtre de la capture.
+            # L'affinité est restaurée immédiatement après chaque image.
+            WDA_NONE = 0x00000000
+            WDA_EXCLUDEFROMCAPTURE = 0x00000011
+            affinite_active = bool(
+                user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+            )
+            if not affinite_active:
+                return None
+            try:
+                shot = ImageGrab.grab(
+                    bbox=(
+                        origin.x + marge, origin.y + marge,
+                        origin.x + width - marge, origin.y + height - marge,
+                    ),
+                    all_screens=True,
+                )
+            finally:
+                user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
+
+            # Aligne la texture sur les dimensions CSS attendues par le shader.
+            echelle = max(1.0, dpi / 96.0)
+            taille = (
+                max(1, round((width - 2 * marge) / echelle)),
+                max(1, round((height - 2 * marge) / echelle)),
+            )
+            if shot.size != taille:
+                shot = shot.resize(taille, Image.Resampling.BILINEAR)
+            buffer = io.BytesIO()
+            shot.convert("RGB").save(buffer, format="JPEG", quality=78, optimize=True)
+            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+            return "data:image/jpeg;base64," + encoded
+        except Exception:
+            return None
 
     def envoyer(self, texte: str) -> bool:
         phrase = (texte or "").strip()
@@ -200,6 +269,9 @@ def _afficher_dans_barre_des_taches() -> None:
     WS_CAPTION = 0x00C00000
     WS_EX_APPWINDOW = 0x00040000
     WS_EX_TOOLWINDOW = 0x00000080
+    WS_EX_LAYERED = 0x00080000
+    LWA_COLORKEY = 0x00000001
+    COULEUR_CLE_MAGENTA = 0x00FF00FF
     SWP_NOSIZE = 0x0001
     SWP_NOMOVE = 0x0002
     SWP_NOZORDER = 0x0004
@@ -216,9 +288,10 @@ def _afficher_dans_barre_des_taches() -> None:
     user32.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
 
     exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
-    # L'alpha est géré par WebView2 ; aucune couche color-key n'est ajoutée.
-    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+    # Le fond magenta du host devient transparent au niveau du compositeur Windows.
+    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW | WS_EX_LAYERED
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
+    user32.SetLayeredWindowAttributes(hwnd, COULEUR_CLE_MAGENTA, 255, LWA_COLORKEY)
 
     # Windows 11 : demande à DWM de ne dessiner aucune bordure.
     try:
@@ -237,29 +310,52 @@ def _afficher_dans_barre_des_taches() -> None:
     )
 
 
+class _AccentPolicy(ctypes.Structure):
+    _fields_ = [
+        ("AccentState", ctypes.c_uint), ("AccentFlags", ctypes.c_uint),
+        ("GradientColor", ctypes.c_uint), ("AnimationId", ctypes.c_uint),
+    ]
+
+
+class _CompAttrData(ctypes.Structure):
+    _fields_ = [("Attribute", ctypes.c_int), ("Data", ctypes.c_void_p), ("SizeOfData", ctypes.c_size_t)]
+
+
+class _Rect(ctypes.Structure):
+    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+
 def _effet_verre() -> None:
-    """Applique uniquement le découpage arrondi natif, sans backdrop ni capture."""
+    """Active le matériau Acrylic Windows et découpe la fenêtre en coins arrondis."""
     if not hasattr(ctypes, "windll"):
         return
     user32 = ctypes.windll.user32
-    user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-    user32.FindWindowW.restype = ctypes.c_void_p
     hwnd = user32.FindWindowW(None, TITRE)
     if not hwnd:
         return
 
-    # Ne jamais utiliser WDA_EXCLUDEFROMCAPTURE : cela cachait toute la fenêtre
-    # dans les captures et les partages d'écran.
+    # L'overlay reste inclus dans les captures et le partage d'écran.
     try:
-        user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-        user32.SetWindowDisplayAffinity.restype = ctypes.c_bool
         user32.SetWindowDisplayAffinity(hwnd, 0)  # WDA_NONE
     except Exception:
         pass
 
-    # Aucun backdrop DWM / Acrylic / Mica n'est activé.
+    # Désactive Mica/Acrylic : le shader WebGL affiche la capture réelle
+    # et calcule lui-même le flou ainsi que la réfraction périphérique.
+    try:
+        ACCENT_DISABLED = 0
+        politique = _AccentPolicy(ACCENT_DISABLED, 0, 0, 0)
+        donnees = _CompAttrData(
+            19,
+            ctypes.cast(ctypes.pointer(politique), ctypes.c_void_p),
+            ctypes.sizeof(politique),
+        )
+        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(donnees))
+    except Exception:
+        pass
 
-    # Découpe native arrondie, sans fond natif opaque.
+    # Découpe native de toute la fenêtre : aucun panneau Acrylic rectangulaire
+    # ne doit dépasser des coins arrondis du composant HTML.
     try:
         class RECT(ctypes.Structure):
             _fields_ = [
@@ -289,38 +385,36 @@ def _effet_verre() -> None:
             region = gdi32.CreateRoundRectRgn(
                 0, 0, largeur + 1, hauteur + 1, rayon * 2, rayon * 2
             )
-            if region and not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
-                gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
-                gdi32.DeleteObject(region)
+            if region:
+                if not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
+                    gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+                    gdi32.DeleteObject(region)
     except Exception:
         pass
 
+    # Conserve l'absence de cadre natif Windows.
     try:
         dwmapi = ctypes.windll.dwmapi
-        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)
+        couleur_sans_bordure = ctypes.c_int(0xFFFFFFFE)  # DWMWA_COLOR_NONE
         dwmapi.DwmSetWindowAttribute(
             hwnd, 34, ctypes.byref(couleur_sans_bordure),
             ctypes.sizeof(couleur_sans_bordure),
         )
+        corner_round = ctypes.c_int(2)  # DWMWCP_ROUND
+        dwmapi.DwmSetWindowAttribute(
+            hwnd, 33, ctypes.byref(corner_round), ctypes.sizeof(corner_round),
+        )
     except Exception:
         pass
 
-
-def _configurer_transparence_native(fenetre) -> None:
-    """Rend la couleur de fond WinForms transparente sans backdrop DWM."""
     try:
-        from System import Action
-        from System.Drawing import Color
-
-        native = fenetre.native
-
-        def appliquer() -> None:
-            # WebView2 transmet l'alpha ; TransparencyKey retire le fond du Form.
-            # Le magenta n'est jamais affiché : il sert uniquement de clé native.
-            native.BackColor = Color.Magenta
-            native.TransparencyKey = Color.Magenta
-
-        native.Invoke(Action(appliquer))
+        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER = 0x0001, 0x0002, 0x0004
+        SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x0010, 0x0020
+        user32.SetWindowPos(
+            hwnd, 0, 0, 0, 0, 0,
+            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER |
+            SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        )
     except Exception:
         pass
 
@@ -349,7 +443,6 @@ def lancer() -> None:
 
     def apres_demarrage() -> None:
         time.sleep(0.8)
-        _configurer_transparence_native(fenetre)
         _afficher_dans_barre_des_taches()
         _effet_verre()
 
@@ -357,7 +450,6 @@ def lancer() -> None:
     # son cadre natif. On retire donc le cadre à chaque restauration.
     def apres_restauration() -> None:
         time.sleep(0.18)
-        _configurer_transparence_native(fenetre)
         _afficher_dans_barre_des_taches()
         _effet_verre()
         try:

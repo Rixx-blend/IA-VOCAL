@@ -19,6 +19,10 @@ class Command:
 _REGISTRY: list[Command] = []
 
 
+class Pas_trouve(Exception):
+    """Levée par une commande qui ne peut pas exécuter la demande : l'assistant prend le relais."""
+
+
 def command(pattern: str, description: str = "") -> Callable[[Handler], Handler]:
     """Décorateur qui enregistre une commande.
 
@@ -49,6 +53,8 @@ def dispatch(text: str) -> Optional[str]:
         if match:
             try:
                 result = cmd.handler(**match.groupdict())
+            except Pas_trouve:
+                return None  # laisse la main à l'assistant
             except Exception as exc:  # on ne plante pas l'overlay
                 return f"Erreur : {exc}"
             return result or "C'est fait."

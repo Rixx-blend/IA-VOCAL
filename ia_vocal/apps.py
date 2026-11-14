@@ -11,6 +11,8 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
+from .commands import Pas_trouve
+
 # Synonymes fréquents et noms alternatifs. La recherche floue générale
 # prend ensuite le relais pour les autres applications.
 ALIAS = {
@@ -154,10 +156,8 @@ def lancer_application(nom: str) -> str:
     if systeme == "Windows":
         exe = _trouver_windows(nom_recherche)
         if exe is None:
-            return (
-                f"Je n'ai pas trouvé de correspondance assez fiable pour « {nom} ». "
-                "Vérifie le nom ou donne le nom affiché dans le menu Démarrer."
-            )
+            # Pas de correspondance fiable : l'assistant local prend le relais
+            raise Pas_trouve(nom)
         try:
             if exe.lower().endswith(".lnk"):
                 os.startfile(exe)  # type: ignore[attr-defined]
@@ -175,7 +175,7 @@ def lancer_application(nom: str) -> str:
     else:
         exe = shutil.which(nom_recherche)
         if exe is None:
-            return f"Je ne trouve pas « {nom} » sur cet ordinateur."
+            raise Pas_trouve(nom)
         try:
             subprocess.Popen([exe])
         except OSError as exc:

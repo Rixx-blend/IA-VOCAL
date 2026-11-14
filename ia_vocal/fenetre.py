@@ -9,6 +9,7 @@ import json
 import os
 import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # Configure la transparence WebView2 avant la création du runtime.
@@ -24,6 +25,106 @@ from .chaine import executer
 from .voice import Ecoute
 
 TITRE = "IA VOCAL"
+FOND_PORT = 47823
+CADENCE_FOND = 1 / 25  # 25 images par seconde pour le fond réfracté
+
+_image_fond: bytes | None = None
+_verrou_fond = threading.Lock()
+
+
+def _grab_fond() -> bytes | None:
+    """Capture la zone du bureau derrière l'overlay et renvoie un JPEG."""
+    if not hasattr(ctypes, "windll"):
+        return None
+    from PIL import Image, ImageGrab
+    user32 = ctypes.windll.user32
+    hwnd = user32.FindWindowW(None, TITRE)
+    if not hwnd:
+        return None
+
+    class POINT(ctypes.Structure):
+        _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+    class RECT(ctypes.Structure):
+        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                    ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+    rect = RECT()
+    if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
+        return None
+    origin = POINT(0, 0)
+    if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+        return None
+    largeur, hauteur = rect.right - rect.left, rect.bottom - rect.top
+    if largeur <= 0 or hauteur <= 0:
+        return None
+    try:
+        dpi = user32.GetDpiForWindow(hwnd) or 96
+    except Exception:
+        dpi = 96
+
+    # L'overlay est retiré de la capture seulement le temps de la copie
+    WDA_NONE = 0x00000000
+    WDA_EXCLUDEFROMCAPTURE = 0x00000011
+    if not user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE):
+        return None
+    try:
+        shot = ImageGrab.grab(
+            bbox=(origin.x, origin.y, origin.x + largeur, origin.y + hauteur),
+            all_screens=True,
+        )
+    finally:
+        user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
+
+    echelle = max(1.0, dpi / 96.0)
+    taille = (max(1, round(largeur / echelle)), max(1, round(hauteur / echelle)))
+    image = shot.convert("RGB").resize(taille, Image.Resampling.BILINEAR)
+    tampon = io.BytesIO()
+    image.save(tampon, format="JPEG", quality=70)
+    return tampon.getvalue()
+
+
+def _boucle_fond() -> None:
+    global _image_fond
+    while True:
+        debut = time.perf_counter()
+        try:
+            image = _grab_fond()
+        except Exception:
+            image = None
+        if image is not None:
+            with _verrou_fond:
+                _image_fond = image
+        time.sleep(max(0.0, CADENCE_FOND - (time.perf_counter() - debut)))
+
+
+class _ServeurFond(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802
+        with _verrou_fond:
+            image = _image_fond
+        if image is None:
+            self.send_response(204)
+        else:
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(image)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if image is not None:
+            self.wfile.write(image)
+
+    def log_message(self, *args) -> None:
+        pass
+
+
+def _demarrer_fond() -> None:
+    try:
+        serveur = ThreadingHTTPServer(("127.0.0.1", FOND_PORT), _ServeurFond)
+    except OSError:
+        return
+    threading.Thread(target=serveur.serve_forever, daemon=True).start()
+    threading.Thread(target=_boucle_fond, daemon=True).start()
 LARGEUR, HAUTEUR = 680, 250
 PAGE = Path(__file__).parent / "ui" / "index.html"
 
@@ -269,9 +370,6 @@ def _afficher_dans_barre_des_taches() -> None:
     WS_CAPTION = 0x00C00000
     WS_EX_APPWINDOW = 0x00040000
     WS_EX_TOOLWINDOW = 0x00000080
-    WS_EX_LAYERED = 0x00080000
-    LWA_COLORKEY = 0x00000001
-    COULEUR_CLE_MAGENTA = 0x00FF00FF
     SWP_NOSIZE = 0x0001
     SWP_NOMOVE = 0x0002
     SWP_NOZORDER = 0x0004
@@ -289,9 +387,8 @@ def _afficher_dans_barre_des_taches() -> None:
 
     exstyle = user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
     # Le fond magenta du host devient transparent au niveau du compositeur Windows.
-    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW | WS_EX_LAYERED
+    exstyle = (exstyle & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
     user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exstyle)
-    user32.SetLayeredWindowAttributes(hwnd, COULEUR_CLE_MAGENTA, 255, LWA_COLORKEY)
 
     # Windows 11 : demande à DWM de ne dessiner aucune bordure.
     try:
@@ -434,10 +531,11 @@ def lancer() -> None:
     fenetre = webview.create_window(
         TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
         width=LARGEUR, height=HAUTEUR, x=x, y=y,
-        frameless=True, transparent=True, background_color="#FF00FF",
+        frameless=True, transparent=True,
         shadow=False, on_top=False,
     )
     api.fenetre = fenetre
+    _demarrer_fond()
     preparation.definir_sortie(api._message)
     preparation.lancer_en_arriere_plan()
 

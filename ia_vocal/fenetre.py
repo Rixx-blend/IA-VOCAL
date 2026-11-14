@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import ctypes
+from ctypes import wintypes
 import io
 import json
 import os
@@ -125,7 +126,7 @@ def _demarrer_fond() -> None:
         return
     threading.Thread(target=serveur.serve_forever, daemon=True).start()
     threading.Thread(target=_boucle_fond, daemon=True).start()
-LARGEUR, HAUTEUR = 680, 250
+LARGEUR, HAUTEUR = 680, 270
 PAGE = Path(__file__).parent / "ui" / "index.html"
 
 
@@ -477,24 +478,49 @@ def _effet_verre() -> None:
                 dpi = user32.GetDpiForWindow(hwnd) or 96
             except Exception:
                 dpi = 96
-            rayon = max(1, round(48 * dpi / 96))
+            echelle = dpi / 96.0
+            rayon = max(1, round(38 * echelle))
             gdi32 = ctypes.windll.gdi32
             gdi32.CreateRoundRectRgn.argtypes = [
                 ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                 ctypes.c_int, ctypes.c_int,
             ]
             gdi32.CreateRoundRectRgn.restype = ctypes.c_void_p
-            user32.SetWindowRgn.argtypes = [
-                ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool,
-            ]
+            gdi32.CreatePolygonRgn.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            gdi32.CreatePolygonRgn.restype = ctypes.c_void_p
+            gdi32.CombineRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+            user32.SetWindowRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool]
             user32.SetWindowRgn.restype = ctypes.c_int
-            region = gdi32.CreateRoundRectRgn(
-                0, 0, largeur + 1, hauteur + 1, rayon * 2, rayon * 2
+
+            # Corps squircle + queue de bulle courbée, en coordonnées physiques.
+            e = lambda valeur: round(valeur * echelle)
+            points = (wintypes.POINT * 12)(
+                ctypes.wintypes.POINT(e(566), e(232)),
+                ctypes.wintypes.POINT(e(590), e(235)),
+                ctypes.wintypes.POINT(e(610), e(244)),
+                ctypes.wintypes.POINT(e(625), e(258)),
+                ctypes.wintypes.POINT(e(635), e(269)),
+                ctypes.wintypes.POINT(e(623), e(267)),
+                ctypes.wintypes.POINT(e(606), e(258)),
+                ctypes.wintypes.POINT(e(590), e(249)),
+                ctypes.wintypes.POINT(e(575), e(246)),
+                ctypes.wintypes.POINT(e(562), e(245)),
+                ctypes.wintypes.POINT(e(552), e(240)),
+                ctypes.wintypes.POINT(e(548), e(234)),
             )
-            if region:
-                if not user32.SetWindowRgn(ctypes.c_void_p(hwnd), region, True):
-                    gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
-                    gdi32.DeleteObject(region)
+            body = gdi32.CreateRoundRectRgn(
+                0, 0, e(largeur + 1), e(hauteur - 18), rayon * 2, rayon * 2
+            )
+            tail = gdi32.CreatePolygonRgn(points, len(points), 2)
+            if body and tail:
+                gdi32.CombineRgn(body, body, tail, 2)
+                gdi32.DeleteObject(tail)
+                if not user32.SetWindowRgn(ctypes.c_void_p(hwnd), body, True):
+                    gdi32.DeleteObject(body)
+            elif body:
+                gdi32.DeleteObject(body)
+            elif tail:
+                gdi32.DeleteObject(tail)
     except Exception:
         pass
 

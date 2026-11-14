@@ -261,6 +261,15 @@ class Api:
         finally:
             self._glisse_en_cours = False
 
+    def activer(self) -> None:
+        """Remet la fenêtre au premier plan pour que le clavier lui revienne."""
+        if not hasattr(ctypes, "windll"):
+            return
+        user32 = ctypes.windll.user32
+        hwnd = user32.FindWindowW(None, TITRE)
+        if hwnd:
+            user32.SetForegroundWindow(hwnd)
+
     def minimiser(self) -> None:
         if self.fenetre:
             self.fenetre.minimize()
@@ -541,6 +550,7 @@ def lancer() -> None:
 
     def apres_demarrage() -> None:
         time.sleep(0.8)
+        api.activer()
         _afficher_dans_barre_des_taches()
         _effet_verre()
 

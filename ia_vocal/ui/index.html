@@ -431,6 +431,10 @@ const saisie = document.getElementById("saisie");
 window.addEventListener("pywebviewready", () => {
   pywebview.api.interface_prete();
 });
+// Un clic sur la fenêtre la remet au premier plan : le clavier peut alors écrire
+document.addEventListener("mousedown", () => {
+  if (window.pywebview && pywebview.api) pywebview.api.activer();
+});
 
 // Appelé par Python
 function setEtat(etat) {

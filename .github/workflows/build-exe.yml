@@ -29,6 +29,13 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --onefile --windowed --name IA-VOCAL --collect-all webview --collect-all vosk --add-data "ia_vocal/ui;ia_vocal/ui" run.py
 
+      - name: Installer Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Créer l'installateur IA-VOCAL-Setup.exe
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
       - name: Publier une nouvelle version GitHub avec le .exe
         uses: softprops/action-gh-release@v2
         with:
@@ -37,9 +44,12 @@ jobs:
           body: |
             Nouvelle version automatique de IA VOCAL.
 
-            - Exécutable Windows : IA-VOCAL.exe
+            - Installateur Windows (recommandé) : IA-VOCAL-Setup.exe
+            - Exécutable seul : IA-VOCAL.exe
             - Commit : ${{ github.sha }}
-          files: dist/IA-VOCAL.exe
+          files: |
+            dist/IA-VOCAL.exe
+            dist/IA-VOCAL-Setup.exe
           draft: false
           prerelease: false
           make_latest: true

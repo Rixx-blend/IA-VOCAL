@@ -486,7 +486,7 @@ def _effet_verre() -> None:
                 ctypes.c_int, ctypes.c_int,
             ]
             gdi32.CreateRoundRectRgn.restype = ctypes.c_void_p
-            gdi32.CreatePolygonRgn.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            gdi32.CreatePolygonRgn.argtypes = [ctypes.POINTER(wintypes.POINT), ctypes.c_int, ctypes.c_int]
             gdi32.CreatePolygonRgn.restype = ctypes.c_void_p
             gdi32.CombineRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
             user32.SetWindowRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool]
@@ -509,7 +509,7 @@ def _effet_verre() -> None:
                 ctypes.wintypes.POINT(e(548), e(234)),
             )
             body = gdi32.CreateRoundRectRgn(
-                0, 0, e(largeur + 1), e(hauteur - 18), rayon * 2, rayon * 2
+                0, 0, e(largeur + 1), e(hauteur - 28), rayon * 2, rayon * 2
             )
             tail = gdi32.CreatePolygonRgn(points, len(points), 2)
             if body and tail:
@@ -540,12 +540,12 @@ def _effet_verre() -> None:
         pass
 
     try:
-        SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER = 0x0001, 0x0002, 0x0004
+        SWP_NOSIZE, SWP_NOMOVE = 0x0001, 0x0002
         SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x0010, 0x0020
+        HWND_TOPMOST = ctypes.c_void_p(-1)
         user32.SetWindowPos(
-            hwnd, 0, 0, 0, 0, 0,
-            SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER |
-            SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+            SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
         )
     except Exception:
         pass
@@ -567,7 +567,7 @@ def lancer() -> None:
         TITRE, html=PAGE.read_text(encoding="utf-8"), js_api=api,
         width=LARGEUR, height=HAUTEUR, x=x, y=y,
         frameless=True, transparent=True,
-        shadow=False, on_top=False,
+        shadow=False, on_top=True,
     )
     api._fenetre = fenetre
     _demarrer_fond()

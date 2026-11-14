@@ -5,50 +5,50 @@
 <style>
 :root{color-scheme:dark;--ink:#f4f6fb;--muted:#aab2c0;--spring:cubic-bezier(.2,.75,.25,1)}
 *{box-sizing:border-box;user-select:none;-webkit-user-select:none}
-html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:transparent!important;background-color:transparent!important;border:0!important;outline:0!important;color:#fff;font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-body{padding:16px!important;background:transparent!important}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:rgba(0,0,0,0)!important;background-color:transparent!important;border:0!important;outline:0!important;color:var(--ink);font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:16px}
 button{font:inherit;color:inherit;border:0;outline:0;cursor:pointer;user-select:none;-webkit-user-select:none}
-.interface{position:relative;isolation:isolate;width:100%;height:100%;padding:12px 16px 13px;display:flex;flex-direction:column;gap:8px;overflow:hidden;border-radius:32px;border:1.5px solid rgba(255,255,255,.6);background:linear-gradient(180deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.03) 50%,rgba(255,255,255,.08) 100%);box-shadow:inset 0 2px 4px rgba(255,255,255,.85),inset 0 -2px 4px rgba(255,255,255,.35),inset 0 0 16px rgba(255,255,255,.15);-webkit-app-region:no-drag}
-.interface:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:32px;background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.015) 45%,rgba(255,255,255,.07))}
+.interface{position:relative;isolation:isolate;width:100%;height:100%;padding:12px 16px 13px;display:flex;flex-direction:column;gap:8px;overflow:hidden;border-radius:32px;border:1px solid rgba(255,255,255,.65);background:rgba(255,255,255,.14);box-shadow:inset 0 2px 3px rgba(255,255,255,.85),inset 0 -2px 4px rgba(0,0,0,.25),inset 0 0 12px rgba(255,255,255,.25),0 16px 36px rgba(0,0,0,.35);-webkit-app-region:no-drag}
+.interface:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:32px;background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.035) 42%,rgba(255,255,255,.075))}
 .interface:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:32px;padding:1px;background:rgba(255,255,255,.65);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 .interface>:not(#verre):not(.texture-verre){position:relative;z-index:3}
-.texture-verre{display:none!important;position:absolute!important;inset:0;z-index:2!important;pointer-events:none;opacity:0;border-radius:32px;background-image:url("data:image/svg+xml,%3Csvg viewBox=%270 0 180 180%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.92%27 numOctaves=%273%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%27.8%27/%3E%3C/svg%3E");background-size:180px 180px}
-#verre{display:none!important}
+.texture-verre{position:absolute!important;inset:0;z-index:2!important;pointer-events:none;opacity:.03;border-radius:32px;background-image:url("data:image/svg+xml,%3Csvg viewBox=%270 0 180 180%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.92%27 numOctaves=%273%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%27.8%27/%3E%3C/svg%3E");background-size:180px 180px}
+#verre{display:block!important;position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 .haut{display:flex;align-items:center;min-height:34px;gap:10px}
 .identite{display:flex;align-items:center;flex:1;min-width:0}
 .zone-orbe{display:flex!important;align-items:center;justify-content:center;flex:none;width:38px;height:38px;margin-right:2px}.zone-orbe canvas{display:block;width:36px;height:36px;filter:drop-shadow(0 0 9px rgba(150,190,255,.25))}.marque{display:none!important}
 .infos{display:flex;align-items:center;min-width:0;cursor:move}
-.etiquette{display:flex;align-items:center;gap:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(250,252,255,.96);font-size:12px;font-weight:550;letter-spacing:.075em;text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8)}
+.etiquette{display:flex;align-items:center;gap:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(250,252,255,.96);font-size:12px;font-weight:550;letter-spacing:.075em;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9)}
 .status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#76efc5;box-shadow:0 0 7px rgba(118,239,197,.9),0 0 15px rgba(118,239,197,.38)}
 body[data-etat="ecoute"] .status-dot{background:#6bdcf5;box-shadow:0 0 9px rgba(107,220,245,.9)}
 body[data-etat="reflechit"] .status-dot{background:#c1a6ff;box-shadow:0 0 9px rgba(193,166,255,.9)}
 body[data-etat="agit"] .status-dot{background:#ffd18c;box-shadow:0 0 9px rgba(255,209,140,.9)}
 .controles{display:flex;gap:6px}
 .controles button:first-child{display:none}
-.controles button:last-child{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.88);font-size:16px;line-height:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3);transition:background .18s ease,transform .2s var(--spring)}
+.controles button:last-child{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.88);font-size:16px;line-height:1;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 2px 2px rgba(255,255,255,.78),inset 0 -1px 2px rgba(0,0,0,.16),0 2px 7px rgba(0,0,0,.10);transition:background .18s ease,transform .2s var(--spring)}
 .controles button:last-child:hover{background:rgba(255,255,255,.19);transform:scale(1.06)}
 .controles button:last-child:active{transform:scale(.92)}
-.message{flex:1;min-height:25px;max-height:82px;overflow:auto;padding:2px;color:#fff;font-size:13px;line-height:1.48;font-weight:450;text-shadow:0 1px 4px rgba(0,0,0,.95);overflow-wrap:anywhere;scrollbar-width:thin}
-.composer{display:flex;align-items:flex-end;gap:8px;padding:7px 7px 7px 15px;min-height:50px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3);transition:background .22s ease,box-shadow .22s ease}
-.composer:focus-within{background:rgba(255,255,255,.10);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3)}
-textarea{flex:1;min-width:0;min-height:34px;max-height:88px;resize:none;overflow-y:auto;padding:8px 0 6px;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#fff;font:450 13px/20px "SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-shadow:0 1px 4px rgba(0,0,0,.95);scrollbar-width:thin;user-select:text;-webkit-user-select:text}
+.message{flex:1;min-height:25px;max-height:82px;overflow:auto;padding:2px;color:rgba(246,248,252,.94);font-size:13px;line-height:1.48;font-weight:450;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9);overflow-wrap:anywhere;scrollbar-width:thin}
+.composer{display:flex;align-items:flex-end;gap:8px;padding:7px 7px 7px 15px;min-height:50px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.42);box-shadow:0 4px 14px rgba(0,0,0,.12),inset 0 2px 2px rgba(255,255,255,.72),inset 0 -1px 2px rgba(0,0,0,.16);transition:background .22s ease,box-shadow .22s ease}
+.composer:focus-within{background:rgba(255,255,255,.105);box-shadow:0 5px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.19),0 0 0 1px rgba(255,255,255,.055)}
+textarea{flex:1;min-width:0;min-height:34px;max-height:88px;resize:none;overflow-y:auto;padding:8px 0 6px;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#fff;font:450 13px/20px "SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-shadow:0 1px 8px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.9);scrollbar-width:thin;user-select:text;-webkit-user-select:text}
 textarea::placeholder{color:rgba(230,235,244,.56)}
 .actions{display:flex;align-items:center;gap:6px;flex:none}
-.action{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3);transition:transform .2s var(--spring),background .18s ease,box-shadow .18s ease}
+.action{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.48);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.8),inset 0 -1px 2px rgba(0,0,0,.15),0 3px 8px rgba(0,0,0,.10);transition:transform .2s var(--spring),background .18s ease,box-shadow .18s ease}
 .action:hover{background:rgba(255,255,255,.15);transform:translateY(-1px)}
 .action:active{transform:scale(.92)}
-.action.principal{color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3)}
-.action.principal:hover{background:rgba(255,255,255,.12);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3);filter:none}
-.action.micro.actif{color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3)}
+.action.principal{color:rgba(255,255,255,.98);background:rgba(255,255,255,.20);border:1px solid rgba(255,255,255,.32);box-shadow:0 2px 12px rgba(255,255,255,.10),inset 0 1px 0 rgba(255,255,255,.42)}
+.action.principal:hover{background:rgba(255,255,255,.34);box-shadow:0 0 9px rgba(255,255,255,.22),0 3px 18px rgba(190,220,255,.24),inset 0 1px 0 rgba(255,255,255,.65),inset 0 0 8px rgba(255,255,255,.18);filter:drop-shadow(0 0 5px rgba(255,255,255,.24))}
+.action.micro.actif{color:#fff;background:rgba(73,190,163,.42);box-shadow:0 0 0 3px rgba(73,190,163,.12)}
 svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
 .poignee{cursor:move}
-body[data-etat="reflechit"] .composer{box-shadow:inset 0 1.5px 2px rgba(255,255,255,.7),inset 0 -1px 3px rgba(0,0,0,.3)}
+body[data-etat="reflechit"] .composer{box-shadow:0 5px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.19),0 0 0 1px rgba(255,255,255,.055)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
 </style>
 </head>
 <body data-etat="repos">
   <main class="interface">
-    <canvas id="verre" aria-hidden="true" style="display:none"></canvas>
+    <canvas id="verre" aria-hidden="true"></canvas>
     <div class="texture-verre" aria-hidden="true"></div>
     <header class="haut">
       <div class="identite">
@@ -275,7 +275,7 @@ const VERRE_VERT = `#version 300 es
 in vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
-const VERRE_FRAG = "#version 300 es\nprecision highp float;\nuniform vec2 u_resDev; uniform float u_scale; uniform vec2 u_centre; uniform vec2 u_demi;\nuniform float u_rayon; uniform float u_ior; uniform float u_bisel; uniform float u_disp;\nuniform float u_rim; uniform float u_angle; uniform vec3 u_tint; uniform sampler2D u_bg;\nuniform vec2 u_texSize; uniform float u_time; out vec4 fragColor;\nfloat sdRoundBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+vec2(r);return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;}\nfloat sceneSDF(vec2 p){return sdRoundBox(p-u_centre,u_demi,u_rayon);}\nvec3 bgAt(vec2 p){return texture(u_bg,clamp(p/u_texSize,vec2(.001),vec2(.999))).rgb;}\nvec2 limitOffset(vec2 v,float m){float l=length(v);return l>m?v*(m/l):v;}\nvoid main(){\n vec2 p=vec2(gl_FragCoord.x,u_resDev.y-gl_FragCoord.y)/u_scale;\n float d=sceneSDF(p),aa=max(fwidth(d),.7),inside=1.0-smoothstep(-aa,aa,d);\n if(inside<=.001){fragColor=vec4(0.0);return;}\n float bevel=max(u_bisel,2.0),profile=clamp(-d/bevel,0.0,1.0),u=1.0-profile;\n float slope=min(.5*u/sqrt(max(1.0-u*u,1e-3)),5.5);\n vec2 e=vec2(.7,0.0);\n vec2 grad=vec2(sceneSDF(p+e.xy)-sceneSDF(p-e.xy),sceneSDF(p+e.yx)-sceneSDF(p-e.yx));\n grad=normalize(grad+vec2(1e-5));vec3 n=normalize(vec3(grad*slope,1.0));\n vec3 I=vec3(0.0,0.0,-1.0);float chroma=clamp(u_disp,0.0,1.0)*.16;\n vec3 rR=refract(I,n,1.0/max(1.02,u_ior-chroma)),rG=refract(I,n,1.0/max(1.02,u_ior)),rB=refract(I,n,1.0/max(1.02,u_ior+chroma));\n float scale=bevel*.82;\n vec2 flow=vec2(sin(p.y*.055+u_time*1.7),cos(p.x*.048-u_time*1.35))*1.6*(1.0-profile);\n vec2 oR=limitOffset(rR.xy/max(abs(rR.z),.22)*scale+flow,42.0);\n vec2 oG=limitOffset(rG.xy/max(abs(rG.z),.22)*scale+flow,42.0);\n vec2 oB=limitOffset(rB.xy/max(abs(rB.z),.22)*scale+flow,42.0);\n vec3 refr=vec3(bgAt(p+oR).r,bgAt(p+oG).g,bgAt(p+oB).b);\n vec3 soft=bgAt(p+oG)*.28+bgAt(p+oG+vec2(4.,0.))*.10+bgAt(p+oG-vec2(4.,0.))*.10+bgAt(p+oG+vec2(0.,4.))*.10+bgAt(p+oG-vec2(0.,4.))*.10+bgAt(p+oG+vec2(8.,0.))*.06+bgAt(p+oG-vec2(8.,0.))*.06+bgAt(p+oG+vec2(0.,8.))*.06+bgAt(p+oG-vec2(0.,8.))*.06+bgAt(p+oG+vec2(5.,5.))*.04+bgAt(p+oG-vec2(5.,5.))*.04;\n refr=mix(refr,soft,.62);\n float fresnel=pow(1.0-clamp(n.z,0.0,1.0),2.0);vec3 R=reflect(I,n);\n vec3 reflected=bgAt(p+limitOffset(R.xy/max(abs(R.z),.22)*bevel*.38,26.0));\n vec2 ld=vec2(cos(u_angle),-sin(u_angle));vec3 L=normalize(vec3(ld*.9,.72));\n vec3 H=normalize(L+vec3(0.,0.,1.));float spec=pow(max(dot(n,H),0.),58.);\n float rim=fresnel*u_rim*(.72+.58*clamp(dot(grad,ld),0.,1.));\n float edge=1.0-smoothstep(0.,bevel,-d);\n float edgeLight=pow(edge,1.65)*(.10+.12*clamp(dot(grad,ld)*.5+.5,0.,1.));\n vec3 glass=refr*u_tint;glass=mix(glass,reflected,fresnel*.32);glass+=vec3(1.0)*(rim*.92+spec*.95+edgeLight);\n glass+=vec3(.78,.9,1.0)*pow(edge,3.0)*.08;\n float alpha=inside*.985;vec3 color=mix(bgAt(p),glass,.78);\n fragColor=vec4(color*alpha,alpha);\n}";
+const VERRE_FRAG = "#version 300 es\nprecision highp float;\nuniform vec2 u_resDev; uniform float u_scale; uniform vec2 u_centre; uniform vec2 u_demi;\nuniform float u_rayon; uniform float u_ior; uniform float u_bisel; uniform float u_disp;\nuniform float u_rim; uniform float u_angle; uniform vec3 u_tint; uniform sampler2D u_bg;\nuniform vec2 u_texSize; uniform float u_time; out vec4 fragColor;\nfloat sdRoundBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+vec2(r);return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;}\nfloat sceneSDF(vec2 p){return sdRoundBox(p-u_centre,u_demi,u_rayon);}\nvec3 bgAt(vec2 p){return texture(u_bg,clamp(p/u_texSize,vec2(.001),vec2(.999))).rgb;}\nvec2 limitOffset(vec2 v,float m){float l=length(v);return l>m?v*(m/l):v;}\nvoid main(){\n vec2 p=vec2(gl_FragCoord.x,u_resDev.y-gl_FragCoord.y)/u_scale;\n float d=sceneSDF(p),aa=max(fwidth(d),.7),inside=1.0-smoothstep(-aa,aa,d);\n if(inside<=.001){fragColor=vec4(0.0);return;}\n float bevel=max(u_bisel,2.0),profile=clamp(-d/bevel,0.0,1.0),u=1.0-profile;\n float slope=min(.5*u/sqrt(max(1.0-u*u,1e-3)),5.5);\n vec2 e=vec2(.7,0.0);\n vec2 grad=vec2(sceneSDF(p+e.xy)-sceneSDF(p-e.xy),sceneSDF(p+e.yx)-sceneSDF(p-e.yx));\n grad=normalize(grad+vec2(1e-5));vec3 n=normalize(vec3(grad*slope,1.0));\n vec3 I=vec3(0.0,0.0,-1.0);float chroma=clamp(u_disp,0.0,1.0)*.16;\n vec3 rR=refract(I,n,1.0/max(1.02,u_ior-chroma)),rG=refract(I,n,1.0/max(1.02,u_ior)),rB=refract(I,n,1.0/max(1.02,u_ior+chroma));\n float scale=bevel*.82;\n vec2 flow=vec2(sin(p.y*.055+u_time*1.7),cos(p.x*.048-u_time*1.35))*1.6*(1.0-profile);\n vec2 oR=limitOffset(rR.xy/max(abs(rR.z),.22)*scale+flow,42.0);\n vec2 oG=limitOffset(rG.xy/max(abs(rG.z),.22)*scale+flow,42.0);\n vec2 oB=limitOffset(rB.xy/max(abs(rB.z),.22)*scale+flow,42.0);\n vec3 refr=vec3(bgAt(p+oR).r,bgAt(p+oG).g,bgAt(p+oB).b);\n vec3 soft=bgAt(p+oG)*.20+bgAt(p+oG+vec2(4.,0.))*.10+bgAt(p+oG-vec2(4.,0.))*.10+bgAt(p+oG+vec2(0.,4.))*.10+bgAt(p+oG-vec2(0.,4.))*.10+bgAt(p+oG+vec2(8.,0.))*.08+bgAt(p+oG-vec2(8.,0.))*.08+bgAt(p+oG+vec2(0.,8.))*.08+bgAt(p+oG-vec2(0.,8.))*.08+bgAt(p+oG+vec2(5.,5.))*.08+bgAt(p+oG-vec2(5.,5.))*.08;\n refr=mix(refr,soft,.62);\n float fresnel=pow(1.0-clamp(n.z,0.0,1.0),2.0);vec3 R=reflect(I,n);\n vec3 reflected=bgAt(p+limitOffset(R.xy/max(abs(R.z),.22)*bevel*.38,26.0));\n vec2 ld=vec2(cos(u_angle),-sin(u_angle));vec3 L=normalize(vec3(ld*.9,.72));\n vec3 H=normalize(L+vec3(0.,0.,1.));float spec=pow(max(dot(n,H),0.),58.);\n float rim=fresnel*u_rim*(.72+.58*clamp(dot(grad,ld),0.,1.));\n float edge=1.0-smoothstep(0.,bevel,-d);\n float edgeLight=pow(edge,1.65)*(.10+.12*clamp(dot(grad,ld)*.5+.5,0.,1.));\n vec3 glass=refr*u_tint;glass=mix(glass,reflected,fresnel*.32);glass+=vec3(1.0)*(rim*.92+spec*.95+edgeLight);\n glass+=vec3(.78,.9,1.0)*pow(edge,3.0)*.08;\n float alpha=inside*.985;vec3 color=mix(bgAt(p),glass,.78);\n fragColor=vec4(color*alpha,alpha);\n}";
 
 // Teinte du verre selon l'état : le verre change de couleur avec l'activité
 const TEINTES = {
@@ -325,6 +325,15 @@ function creerVerre(canvas, contenant) {
     .forEach(nom => { U[nom] = gl.getUniformLocation(prog, nom); });
 
   gl.uniform1i(U.u_bg, 0);
+  let imageFond = null, textureSale = false, captureEnCours = false, dernierCapture = 0;
+  async function actualiserCapture(now) {
+    if (captureEnCours || now - dernierCapture < 80) return;
+    captureEnCours = true; dernierCapture = now;
+    try {
+      const data = await pywebview.api.capturer_fond();
+      if (data) { const img = new Image(); img.onload = () => { imageFond = img; textureSale = true; }; img.src = data; }
+    } catch (_) {} finally { captureEnCours = false; }
+  }
   const teinte = [1, 1, 1];
   const cible = [1, 1, 1];
   const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -348,7 +357,7 @@ function creerVerre(canvas, contenant) {
     temps += dt * (reduit ? 0.3 : 1);
     for (let i = 0; i < 3; i++) teinte[i] += (cible[i] - teinte[i]) * 0.06;
 
-    // Pas de capture écran périodique : le flou natif DWM évite la récursion et reste partageable.
+    actualiserCapture(now);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -359,7 +368,7 @@ function creerVerre(canvas, contenant) {
     // La carte entière est la forme : centre au milieu, rayon des coins de 24 px
     gl.uniform2f(U.u_centre, cssW / 2, cssH / 2);
     gl.uniform2f(U.u_demi, cssW / 2, cssH / 2);
-    gl.uniform1f(U.u_rayon, 32);
+    gl.uniform1f(U.u_rayon, 24);
     // Réglages du préréglage Prism
     gl.uniform1f(U.u_ior, 1.52);
     gl.uniform1f(U.u_bisel, 12.0);
@@ -369,6 +378,11 @@ function creerVerre(canvas, contenant) {
     gl.uniform3f(U.u_tint, teinte[0], teinte[1], teinte[2]);
     gl.uniform2f(U.u_texSize, cssW, cssH);
     gl.uniform1f(U.u_time, temps);
+    if (textureSale && imageFond && imageFond.complete && imageFond.naturalWidth > 0) {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textureFond);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageFond);
+      textureSale = false;
+    }
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     requestAnimationFrame(dessiner);

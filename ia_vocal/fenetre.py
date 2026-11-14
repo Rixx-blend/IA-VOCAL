@@ -75,7 +75,7 @@ class Api:
                 dpi = user32.GetDpiForWindow(hwnd) or 96
             except Exception:
                 dpi = 96
-            marge = round(16 * dpi / 96)  # marge transparente CSS autour de la vitre
+            marge = 0  # la texture couvre toute la fenêtre, comme le shader l'attend
             # WDA_EXCLUDEFROMCAPTURE retire cette fenêtre de la capture.
             # L'affinité est restaurée immédiatement après chaque image.
             WDA_NONE = 0x00000000

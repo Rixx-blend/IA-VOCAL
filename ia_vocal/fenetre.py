@@ -495,7 +495,7 @@ def _effet_verre() -> None:
             # Corps squircle + queue de bulle courbée, en coordonnées physiques.
             e = lambda valeur: round(valeur * echelle)
             points = (wintypes.POINT * 12)(
-                ctypes.wintypes.POINT(e(566), e(232)),
+                wintypes.POINT(e(566), e(232)),
                 ctypes.wintypes.POINT(e(590), e(235)),
                 ctypes.wintypes.POINT(e(610), e(244)),
                 ctypes.wintypes.POINT(e(625), e(258)),

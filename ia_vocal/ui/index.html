@@ -8,7 +8,7 @@
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:rgba(0,0,0,0)!important;background-color:transparent!important;border:0!important;outline:0!important;color:var(--ink);font-family:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 body{padding:16px}
 button{font:inherit;color:inherit;border:0;outline:0;cursor:pointer;user-select:none;-webkit-user-select:none}
-.interface{position:relative;isolation:isolate;width:100%;height:100%;padding:12px 16px 25px;display:flex;flex-direction:column;gap:8px;overflow:hidden;border-radius:38px;border:0;background:transparent;box-shadow:none;-webkit-app-region:no-drag;clip-path:path("M 38 0 H 642 C 665 0 680 15 680 38 V 202 C 680 226 665 242 642 242 H 620 C 606 242 600 248 604 257 C 610 269 602 272 590 264 C 574 254 562 244 545 242 H 38 C 15 242 0 227 0 204 V 38 C 0 15 15 0 38 0 Z")}
+.interface{position:relative;isolation:isolate;width:100%;height:100%;padding:12px 16px 25px;display:flex;flex-direction:column;gap:8px;overflow:hidden;border-radius:38px;border:0;background:transparent;box-shadow:none;-webkit-app-region:no-drag;clip-path:path("M 38 0 H 642 C 665 0 680 15 680 38 V 212 C 680 236 665 252 642 252 H 620 C 606 252 600 258 604 267 C 610 276 602 272 590 264 C 574 254 562 252 545 252 H 38 C 15 252 0 237 0 214 V 38 C 0 15 15 0 38 0 Z")}
 .interface:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:38px;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.015) 42%,rgba(72,105,150,.08));}
 .interface:after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:38px;padding:1.2px;background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(255,255,255,.22) 34%,rgba(65,93,132,.34) 72%,rgba(255,255,255,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 .interface>:not(#verre):not(.texture-verre){position:relative;z-index:3}
@@ -276,7 +276,7 @@ in vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
 const VERRE_FRAG = "#version 300 es\nprecision highp float;\nuniform vec2 u_resDev; uniform float u_scale; uniform vec2 u_centre; uniform vec2 u_demi;\nuniform float u_rayon; uniform float u_ior; uniform float u_bisel; uniform float u_disp;\nuniform float u_rim; uniform float u_angle; uniform vec3 u_tint; uniform sampler2D u_bg;\nuniform vec2 u_texSize; uniform float u_time; out vec4 fragColor;\nfloat sdRoundBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+vec2(r);return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;}\nfloat sdBubble(vec2 p){
- vec2 bodyHalf=vec2(u_demi.x,u_demi.y-10.0);
+ vec2 bodyHalf=vec2(u_demi.x,u_demi.y-13.0);
  float body=sdRoundBox(p-u_centre+vec2(0.0,5.0),bodyHalf,u_rayon);
  // Queue arrondie intégrée au corps : capsule inclinée vers le bas/droite.
  vec2 q=p-vec2(u_centre.x+u_demi.x-76.0,u_centre.y+u_demi.y-4.0);
